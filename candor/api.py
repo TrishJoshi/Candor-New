@@ -33,6 +33,7 @@ from pydantic import BaseModel
 
 from candor import store
 from candor.urls import normalize_reddit_url
+from candor.view import distribution
 
 logger = logging.getLogger("candor.api")
 
@@ -164,7 +165,19 @@ def get_map(analysis_id: str) -> FileResponse:
 @app.get("/api/history")
 def get_history(request: Request, response: Response) -> dict:
     vid = _visitor(request, response)
-    return {"analyses": store.history(vid)}
+    return {"analyses": [_with_distribution(a) for a in store.history(vid)]}
+
+
+def _with_distribution(a: dict) -> dict:
+    """Analyses stored before summaries carried the narrative distribution: derive it from view.json."""
+    s = a.get("summary")
+    if a.get("status") == "done" and isinstance(s, dict) and "narratives" not in s:
+        p = store.read_file(a["id"], "view.json")
+        try:
+            s["narratives"] = distribution(json.loads(p.read_text(encoding="utf-8")).get("narratives") or []) if p else []
+        except (ValueError, KeyError, TypeError):
+            s["narratives"] = []
+    return a
 
 
 # Mounted last so the /api routes above take priority.

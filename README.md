@@ -13,6 +13,13 @@ Built for Junction 2026. Live at **https://candor-junction-2026.tech**. The site
 
 A finished analysis opens in the same Reddit mockup as the demo (`web/view.html?id=<analysis>`): every comment shows its author's authenticity badge and its narrative, and the sidebar ranks the thread's narratives by engagement and by how credible their commenters are.
 
+How a result explains itself:
+
+- **Narrative distribution pill** under the post: the top 3 narratives' share of the thread's engagement, plus *Others* (smaller narratives and unclustered comments). The same pill appears on each entry in *Your analyses*. Clicking it opens a **mini dashboard**: each narrative's share, which kinds of accounts push it (likely authentic / uncertain / suspicious / not scored) and a step-by-step "How is this computed?".
+- **Tooltips** on every number (hover, keyboard focus, or tap on phones).
+- **Narrative map** (`map.html`): dots are sized by upvotes and fade with their author's authenticity score; unscored authors are hollow rings. Big, solid clusters = narratives with real engagement from authentic-looking accounts. The Dashboard's map is sized by upvotes only (its 3,516 authors aren't scored).
+- **Tutorial** (`web/tour.js`): a guided tour that opens on the first visit to each page (Analyze, result, Demo, Dashboard) and reopens from **? Tutorial** in the nav. The Analyze tour ends on a bundled example result (`view.html?id=example`, files in `web/example/`).
+
 ---
 
 ## How it is hosted
@@ -73,6 +80,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 Locally, FastAPI also serves `web/`, so you don't need nginx. The live pipeline loads both `.env` files itself.
 
 - Run the pipeline without the web app: `python -m candor.live <reddit_url>` (prints the `view.html?id=` to open).
+- Rebuild stored narrative maps after changing the map: `python -m candor.rebuild --all` (or `<id> ...`). Runs from before `embeddings.npy` was stored are re-embedded once with Gemini; no context.dev credits.
 - Tests: `python -m pytest` (app, offline) and `cd narrative-buckets && python -m pytest` (Stage 2 engine).
 
 ---
@@ -100,7 +108,7 @@ The job runs candor/live.py::analyze() in a worker thread:
 
 A typical thread takes about 1 minute (measured: 55 s and 68 s) and ~22 context.dev credits on a cold profile cache.
 
-Every run is stored for later use in `data/analyses/<id>/`: `post.json` (scraped thread), `accounts.json` (profiles), `stage2.json` (narratives), `scores.json`, `view.json`, `map.html`. `data/candor.db` indexes the runs and which visitor ran them.
+Every run is stored for later use in `data/analyses/<id>/`: `post.json` (scraped thread), `accounts.json` (profiles), `stage2.json` (narratives), `embeddings.npy`, `scores.json`, `view.json`, `map.html`. `data/candor.db` indexes the runs and which visitor ran them.
 
 | Endpoint | |
 |---|---|
@@ -166,6 +174,7 @@ Anyone with an analysis link can open it (ids are random); the history list only
 | [candor/view.py](candor/view.py) | Builds the mockup data (threads, profiles, narratives) |
 | [candor/store.py](candor/store.py) | SQLite index + per-analysis files |
 | [candor/urls.py](candor/urls.py) | Reddit URL validation and normalisation |
+| [candor/rebuild.py](candor/rebuild.py) | Rebuilds stored analyses' `map.html` |
 | [candor/SCRAPING.md](candor/SCRAPING.md) | Design doc for the live scraping stage, including the planned profile scraping and scoring |
 | [candor/\_\_init\_\_.py](candor/__init__.py) | Adds `narrative-buckets/candor` to the `candor` package's import path, so both codebases import as `candor.*` |
 | [web/index.html](web/index.html) | Analyze tab: paste a link, your past analyses |
@@ -173,7 +182,9 @@ Anyone with an analysis link can open it (ids are random); the history list only
 | [web/demo.html](web/demo.html) | Simulated Reddit feed (template + dataset-2 data) |
 | [web/dashboard.html](web/dashboard.html) | Dashboard tab; embeds `web/dashboard/narrative-map.html` |
 | [web/analyze.html](web/analyze.html) | Redirects old links to the Analyze tab |
-| [mockup/template.html](mockup/template.html) | The Reddit mockup used by demo.html and view.html. `mockup/build_mockup.py` regenerates both (demo from `data/dataset2`). |
+| [web/tour.js](web/tour.js) | Guided tutorial shared by all pages |
+| `web/example/` | The tutorial's example result (`view.json` + `map.html` of one r/politics analysis) |
+| [mockup/template.html](mockup/template.html) | The Reddit mockup used by demo.html and view.html. `mockup/build_mockup.py` regenerates both (demo from `data/dataset2`; note this changes the demo, whose committed data predates the current `profile_scores.json`). |
 | `web/logos/` | Partner logos (context.dev, Hostinger, NVIDIA) |
 | [deploy/](deploy/) | `deploy.sh`, `setup_vps.sh`, `candor.service`, `nginx-candor.conf` (see above) |
 | [requirements.txt](requirements.txt) | Server dependencies (FastAPI, context.dev, UMAP, HDBSCAN, Gemini/NVIDIA clients). The local MiniLM/torch model is deliberately left out. |

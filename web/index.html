@@ -92,6 +92,17 @@ nav{flex-wrap:wrap;gap:10px}
 .hbar{height:4px;border-radius:2px;background:var(--blue-soft);margin-top:8px;overflow:hidden}
 .hbar span{display:block;height:100%;background:var(--blue)}
 .empty{color:var(--muted);font-size:14px;border:1px dashed var(--border);border-radius:12px;padding:14px}
+/* narrative distribution pill (history) */
+.npill{margin-top:8px}
+.npill-bar{display:flex;gap:2px;height:7px;border-radius:4px;overflow:hidden}
+.npill-bar span{display:block;height:100%;min-width:3px}
+.npill-leg{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12.5px;color:var(--muted);margin-top:5px}
+.npill-leg span{display:inline-flex;align-items:center;gap:5px;max-width:100%}
+.npill-leg em{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+.npill-leg i{width:8px;height:8px;border-radius:50%;flex:none}
+.npill-leg b{color:var(--text);font-weight:600}
+.right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.tour-btn{color:var(--muted)!important}
 </style>
 </head>
 <body>
@@ -103,7 +114,10 @@ nav{flex-wrap:wrap;gap:10px}
     Candor
   </a>
   <div class="tabs"><a href="/" aria-current="page">Analyze</a><a href="demo.html">Demo</a><a href="dashboard.html">Dashboard</a></div>
-  <span class="status" id="api"><i></i><span>Checking API…</span></span>
+  <div class="right">
+    <span class="status" id="api"><i></i><span>Checking API…</span></span>
+    <button class="tour-btn" type="button" data-tour-start>? Tutorial</button>
+  </div>
 </nav>
 
 <main>
@@ -202,10 +216,26 @@ function item(a) {
   if (a.status === 'done') status = `<span class="chip done">Done</span><span>${s.n_comments ?? '?'} comments · ${s.n_narratives ?? '?'} narratives · avg authenticity ${s.mean_score == null ? 'n/a' : Math.round(s.mean_score)}${flagged ? ` · ${flagged} flagged` : ''}</span>`;
   else if (a.status === 'error') status = `<span class="chip err">Failed</span><span>${esc(a.error || '')}</span>`;
   else status = `<span class="chip run">${a.status === 'queued' ? 'Queued' : Math.round((a.progress || 0) * 100) + '%'}</span><span>${esc(a.message || '')}</span>`;
-  const bar = (a.status === 'running' || a.status === 'queued') ? `<div class="hbar"><span style="width:${Math.round((a.progress || 0) * 100)}%"></span></div>` : '';
+  const bar = a.status === 'done' ? pill(s.narratives) : (a.status === 'running' || a.status === 'queued') ? `<div class="hbar"><span style="width:${Math.round((a.progress || 0) * 100)}%"></span></div>` : '';
   return `<li class="hitem"><a href="view.html?id=${encodeURIComponent(a.id)}">
     <div class="htitle">${esc(a.title || a.canonical_url)}</div>
     <div class="hmeta">${a.subreddit ? `<span>r/${esc(a.subreddit)}</span>` : ''}<span>${ago(a.created_at)}</span>${status}</div>${bar}</a></li>`;
+}
+// Narrative distribution pill: top narratives' share of the thread's engagement + Others.
+const NCOL = ['#2a78d6', '#eb6834', '#1b9e77'], OCOL = '#a3a8b0';
+function pcts(shares) {  // whole percentages that add up to 100 (largest remainder)
+  const tot = shares.reduce((a, b) => a + b, 0) || 1, raw = shares.map(x => x / tot * 100), out = raw.map(Math.floor);
+  let left = 100 - out.reduce((a, b) => a + b, 0);
+  raw.map((x, i) => [x - Math.floor(x), i]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => { if (left > 0) { out[i]++; left--; } });
+  return out;
+}
+function pill(parts) {
+  if (!parts || !parts.length) return '';
+  const pc = pcts(parts.map(p => p.share));
+  const col = (p, i) => p.id == null ? OCOL : NCOL[i] || OCOL;
+  const tip = 'Narrative distribution: each narrative\'s share of the thread\'s engagement (upvotes and replies). Others = smaller narratives and unclustered comments.';
+  return `<div class="npill" title="${tip}"><div class="npill-bar">${parts.map((p, i) => `<span style="flex:${p.share} 1 0;background:${col(p, i)}"></span>`).join('')}</div>
+    <div class="npill-leg">${parts.map((p, i) => `<span><i style="background:${col(p, i)}"></i><em>${esc(p.label)}</em><b>${pc[i]}%</b></span>`).join('')}</div></div>`;
 }
 async function loadHistory() {
   try {
@@ -224,6 +254,18 @@ input.addEventListener('input', () => { hint.textContent = ''; });
 fetch('api/health').then(r => r.ok ? r.json() : Promise.reject())
   .then(j => { if (!j.ok) throw 0; api.className = 'status up'; api.lastChild.textContent = 'Live API online'; })
   .catch(() => { api.className = 'status down'; api.lastChild.textContent = 'Live API offline'; });
+</script>
+<script src="tour.js"></script>
+<script>
+CandorTour.setup({key: 'candor_tour_home', steps: () => [
+  {title: 'Welcome to Candor', body: `<p>Candor shows <b>which narratives get the attention</b> in a Reddit thread, and <b>whether the accounts pushing them look authentic</b>.</p><p>This short tour walks you through it, from pasting a link to reading the result. You can reopen it any time with <b>? Tutorial</b>.</p>`},
+  {sel: '#live', title: '1. Paste a Reddit link', body: `<p>Copy the address of any public Reddit post (<code>reddit.com/r/…/comments/…</code>), paste it here and press <b>Analyze</b>.</p>`},
+  {sel: '.mode.live', title: '2. Candor analyses it (1–2 min)', body: `<ol><li>Scrapes the thread and its comments.</li><li>Scrapes the profiles of the most engaged commenters.</li><li>Groups the comments into <b>narratives</b> by meaning (Gemini embeddings) and names them (NVIDIA Nemotron).</li><li>Scores each account's <b>authenticity</b>, 0–100, on five criteria.</li></ol><p>You'll see a progress bar; you can close the page meanwhile.</p>`},
+  {sel: '.history', title: '3. Come back any time', body: `<p>Every analysis you run is saved here, in this browser, with its <b>narrative distribution</b>: the thread's top narratives and their share of the engagement.</p>`},
+  {sel: '.mode.demo', title: 'Or browse the demo', body: `<p>A feed of threads we've already analysed, where every account carries its authenticity score.</p>`},
+  {sel: '.tabs a[href="dashboard.html"]', title: 'Dashboard', body: `<p>The narrative map across 4,453 posts and comments from four subreddits.</p>`},
+  {title: 'Next: reading a result', body: `<p>Let's open a finished analysis and go through what each number means.</p>`, action: {label: 'Show me an example →', href: 'view.html?id=example&tour=1'}},
+]});
 </script>
 </body>
 </html>

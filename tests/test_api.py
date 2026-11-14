@@ -108,3 +108,21 @@ def test_restart_marks_running_jobs_failed(client):
     store.update(aid, status="running")
     assert store.mark_interrupted() == 1
     assert store.get(aid)["status"] == "error"
+
+
+def test_distribution_top3_plus_others():
+    from candor.view import distribution
+    ns = [{"id": -1, "label": "noise", "weighted_share": 0.2}] + [
+        {"id": i, "label": f"n{i}", "weighted_share": s} for i, s in enumerate([0.1, 0.4, 0.05, 0.25])]
+    d = distribution(ns)
+    assert [x["id"] for x in d] == [1, 3, 0, None]
+    assert d[-1]["label"] == "Others" and abs(d[-1]["share"] - 0.25) < 1e-9  # n2 + noise
+
+
+def test_history_backfills_distribution(client):
+    r = client.post("/api/analyze", json={"url": "https://www.reddit.com/r/x/comments/1abc11/t/"})
+    aid = r.json()["id"]
+    _wait(client, aid)
+    store.write_json(aid, "view.json", {"narratives": [{"id": 0, "label": "a", "weighted_share": 1.0}]})
+    h = client.get("/api/history").json()["analyses"]
+    assert h[0]["summary"]["narratives"] == [{"id": 0, "label": "a", "share": 1.0}]

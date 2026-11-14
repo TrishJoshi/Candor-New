@@ -10,6 +10,7 @@
   --text:#1c1c1c; --muted:#7c7c7c; --link:#0079d3; --brand:#ff4500; --vote:#878a8c;
   --ok:#1a7f37; --ok-bg:#dafbe1; --warn:#9a6700; --warn-bg:#fff4c5; --bad:#cf222e; --bad-bg:#ffe1e1;
   --na:#6e7781; --na-bg:#eaeef2; --shadow:0 4px 16px rgba(0,0,0,.18);
+  --n1:#2a78d6; --n2:#eb6834; --n3:#1b9e77; --nother:#a3a8b0;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -17,6 +18,7 @@
     --text:#d7dadc; --muted:#818384; --link:#4fbcff; --vote:#818384;
     --ok:#4ac26b; --ok-bg:#12301c; --warn:#d4a72c; --warn-bg:#3a2e0a; --bad:#ff7b72; --bad-bg:#3d1214;
     --na:#9198a1; --na-bg:#2a2e33; --shadow:0 4px 16px rgba(0,0,0,.6);
+    --n1:#4f9cf0; --n2:#f07f4f; --n3:#36c49a; --nother:#5f646b;
   }
 }
 :root[data-theme="dark"]{
@@ -24,6 +26,7 @@
   --text:#d7dadc; --muted:#818384; --link:#4fbcff; --vote:#818384;
   --ok:#4ac26b; --ok-bg:#12301c; --warn:#d4a72c; --warn-bg:#3a2e0a; --bad:#ff7b72; --bad-bg:#3d1214;
   --na:#9198a1; --na-bg:#2a2e33; --shadow:0 4px 16px rgba(0,0,0,.6);
+  --n1:#4f9cf0; --n2:#f07f4f; --n3:#36c49a; --nother:#5f646b;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -173,12 +176,63 @@ header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom
 .prog .btn{display:inline-block;margin-top:14px;border:0;border-radius:16px;padding:7px 16px;background:var(--link);color:#fff;font-weight:700;cursor:pointer}
 .steps{margin:14px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
 .steps li{margin:4px 0}
+/* tooltips for numbers ([data-tip]) */
+[data-tip]{cursor:help}
+button[data-tip],a[data-tip],.badge[data-tip]{cursor:pointer}
+.num{text-decoration:underline dotted var(--muted);text-underline-offset:2px}
+.tipbox{position:fixed;z-index:80;max-width:280px;background:#1c1c1c;color:#fff;border-radius:6px;padding:6px 9px;font-size:12px;line-height:1.4;font-weight:500;pointer-events:none;opacity:0;transition:opacity .12s;box-shadow:var(--shadow)}
+.tipbox.on{opacity:1}
+:root[data-theme="dark"] .tipbox{background:#f0f0f0;color:#111}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .tipbox{background:#f0f0f0;color:#111}}
+/* narrative distribution pill */
+.npill{all:unset;box-sizing:border-box;display:block;width:100%;max-width:560px;margin:10px 0 2px;padding:8px 10px;border:1px solid var(--border);border-radius:12px;cursor:pointer;background:var(--card)}
+.npill:hover{border-color:var(--link)}
+.npill:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+.npill-hd{display:flex;align-items:baseline;gap:8px;font-size:12px;font-weight:700;color:var(--muted)}
+.npill-hd .how{margin-left:auto;color:var(--link);font-weight:600}
+.npill-bar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:6px 0 6px;gap:2px;background:var(--card)}
+.npill-bar span{display:block;height:100%;min-width:3px}
+.npill-leg{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--text)}
+.npill-leg .pl{display:inline-flex;align-items:center;gap:5px;min-width:0;max-width:100%}
+.npill-leg .pl em{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
+.npill-leg i,.sw{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.npill-leg b{font-weight:700}
+.npill.mini{max-width:none;margin:6px 0 0;padding:0;border:0;background:none;cursor:default}
+.nchip .sw{width:7px;height:7px}
+/* narrative modal (mini dashboard) */
+.modal-bg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.45);display:none;align-items:flex-start;justify-content:center;padding:32px 16px;overflow:auto}
+.modal-bg.open{display:flex}
+.modal{position:relative;background:var(--card);color:var(--text);border-radius:12px;box-shadow:var(--shadow);width:min(680px,100%);padding:18px 20px 20px}
+.modal h2{margin:0 24px 2px 0;font-size:19px}
+.modal .msub{color:var(--muted);font-size:13px;margin:0 0 6px;overflow-wrap:anywhere}
+.modal .npill{max-width:none;cursor:default;border:0;padding:0;margin:8px 0 4px}
+.modal .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:12px 0 4px}
+.modal .kpi{background:var(--card-2);border-radius:8px;padding:8px 10px}
+.modal .kpi b{display:block;font-size:20px;line-height:1.2}
+.modal .kpi span{font-size:12px;color:var(--muted)}
+.mrow{border-top:1px solid var(--border-soft);padding:12px 0}
+.mrow .mh{display:flex;align-items:center;gap:8px;font-weight:700}
+.mrow .mh .share{margin-left:auto;font-size:18px}
+.mrow .mm{font-size:12px;color:var(--muted);margin:2px 0 6px 17px}
+.mrow .ml{font-size:12px;font-weight:600;margin:6px 0 3px 17px}
+.mrow .cbar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-left:17px;background:var(--card-2)}
+.mrow .cbar span{display:block;height:100%}
+.mrow .cleg{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--muted);margin:4px 0 0 17px}
+.mrow .cleg i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:4px}
+.mrow .hl{margin:8px 0 0 17px;font-size:12px;font-weight:600;border:1px solid var(--border);background:transparent;border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--link)}
+.howto{margin-top:6px;border-top:1px solid var(--border-soft);padding-top:10px;font-size:13px}
+.howto summary{cursor:pointer;font-weight:700}
+.howto ol{padding-left:18px;margin:8px 0 0}
+.howto li{margin:6px 0}
+.howto code{background:var(--card-2);border-radius:4px;padding:0 4px;font-size:12px}
+.modal .closex{top:10px;right:12px}
 </style>
 </head>
 <body>
 <nav class="candor-nav" aria-label="Candor">
   <a class="brand" href="/"><span class="flag" aria-hidden="true"><i style="background:#3662e3"></i><i style="background:#1f9d55"></i><i style="background:#e03e3e"></i></span>Candor</a>
   <div class="tabs"><a href="/">Analyze</a><a href="/demo.html">Demo</a><a href="/dashboard.html">Dashboard</a></div>
+  <button class="tour-btn" type="button" data-tour-start style="margin-left:auto">? Tutorial</button>
 </nav>
 <header class="top">
   <div class="logo" onclick="location.hash=''"><div class="snoo">●</div><span>reddit</span></div>
@@ -193,6 +247,9 @@ header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom
 <p class="disclaimer" id="disclaimer">Concept mockup for the Authenticity Scorer (Junction 2026). It is not affiliated with Reddit. Posts and comments come from a public scrape; scores come from profile_scores.json.</p>
 
 <div class="pop" id="pop" role="dialog" aria-modal="false"></div>
+<div class="modal-bg" id="nmodal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="nm-title"></div></div>
+<div class="tipbox" id="tipbox" role="tooltip"></div>
+<script src="tour.js"></script>
 
 <script>
 let DATA = /*__DATA__*/null;   // injected for the demo; fetched by ?id= for live analyses
@@ -216,6 +273,25 @@ function ago(iso){
   return Math.round(s/86400/365)+"y ago";
 }
 const fmt = n => n==null ? "•" : n>=10000 ? (n/1000).toFixed(1)+"k" : String(n);
+const tip = t => ` data-tip="${esc(t)}"`;
+const TIP = {
+  score: "Authenticity score, 0–100: a weighted sum of five criteria (C1–C5). 70+ = likely authentic, 40–69 = uncertain, below 40 = suspicious. A red flag (any criterion at 20% or less) caps the label at uncertain.",
+  postVotes: "The post's score on Reddit when we scraped it (upvotes minus downvotes).",
+  cmtVotes: "This comment's score on Reddit when we scraped it. Higher-scored comments count more towards their narrative's share.",
+  weight: "Weight: this criterion's share of the overall score. The five weights add up to 100.",
+  critPct: "How this account did on this criterion: 100% = no warning signs. Each signal listed below takes points off.",
+  pts: "Points this signal took off the criterion's 100.",
+  karma: "Total karma (post + comment) shown on the Reddit profile.",
+  age: "Account age when we scraped it. A new account alone isn't suspicious, but it adds up with other signals (C1 Profile).",
+};
+/* Shares as whole percentages that add up to 100 (largest remainder). */
+function pcts(shares){
+  const tot = shares.reduce((a,b)=>a+b,0) || 1;
+  const raw = shares.map(x=>x/tot*100), out = raw.map(Math.floor);
+  let left = 100 - out.reduce((a,b)=>a+b,0);
+  raw.map((x,i)=>[x-Math.floor(x),i]).sort((a,b)=>b[0]-a[0]).forEach(([,i])=>{ if(left>0){ out[i]++; left--; } });
+  return out;
+}
 function md(s){
   let h = esc(s);
   h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
@@ -227,15 +303,15 @@ function md(s){
 /* ---------- badge ---------- */
 function badge(u){
   const p = P[u];
-  if(!p) return `<span class="badge lv-na" title="Not scored">?</span>`;
+  if(!p) return `<span class="badge lv-na"${tip(LIVE() ? "Not scored: we score the thread's most engaged commenters only." : "Not scored")}>?</span>`;
   const l = lv(u);
   const bars = ["C1","C2","C3","C4","C5"].map(k=>{
     const c = p.criteria[k];
-    if(!c || !c.assessed) return `<span class="na" title="${k} not assessed"></span>`;
-    return `<span style="height:${Math.max(2,Math.round(c.pct/100*11))}px" title="${k} ${CRIT[k]}: ${c.pct}%"></span>`;
+    if(!c || !c.assessed) return `<span class="na"${tip(`${k} ${CRIT[k]}: couldn't be assessed (e.g. hidden history), so it counts as ${DATA.meta.unassessed_pct}%`)}></span>`;
+    return `<span style="height:${Math.max(2,Math.round(c.pct/100*11))}px"${tip(`${k} ${CRIT[k]}: ${c.pct}% (weight ${W[k]})`)}></span>`;
   }).join("");
   const score = p.score==null ? "n/a" : Math.round(p.score);
-  return `<button class="badge lv-${l}" data-user="${esc(u)}" aria-label="Authenticity ${score} for ${esc(u)}: ${LABEL[p.label]}">${l==="ok"?"✓":l==="na"?"–":"⚠"} ${score}<span class="bars">${bars}</span></button>`;
+  return `<button class="badge lv-${l}" data-user="${esc(u)}"${tip(`${LABEL[p.label]} · ${score}/100. Bars: C1 Profile, C2 Originality, C3 Coordination, C4 Engagement, C5 Behaviour. Click for the evidence.`)} aria-label="Authenticity ${score} for ${esc(u)}: ${LABEL[p.label]}">${l==="ok"?"✓":l==="na"?"–":"⚠"} ${score}<span class="bars">${bars}</span></button>`;
 }
 const user = u => `<span class="u"><a class="name" data-user="${esc(u)}" href="javascript:void 0">u/${esc(u)}</a>${badge(u)}</span>`;
 
@@ -245,8 +321,8 @@ function openPop(u, anchor){
   const p = P[u]; if(!p) return;
   const l = lv(u);
   const facts = [];
-  if(p.age_days!=null) facts.push(`${p.age_days<365?Math.round(p.age_days)+" days":(p.age_days/365).toFixed(1)+" yrs"} old`);
-  if(p.karma!=null) facts.push(`${p.karma.toLocaleString()} karma`);
+  if(p.age_days!=null) facts.push(`<span class="num"${tip(TIP.age)}>${p.age_days<365?Math.round(p.age_days)+" days":(p.age_days/365).toFixed(1)+" yrs"} old</span>`);
+  if(p.karma!=null) facts.push(`<span class="num"${tip(TIP.karma)}>${p.karma.toLocaleString()} karma</span>`);
   if(p.fetch && p.fetch!=="ok") facts.push(p.fetch.replace("_"," "));
   if(p.history===false) facts.push("history hidden");
   const crits = ["C1","C2","C3","C4","C5"].map(k=>{
@@ -254,15 +330,15 @@ function openPop(u, anchor){
     if(!c) return "";
     const cl = !c.assessed ? "na" : c.pct>=80 ? "ok" : c.pct>=50 ? "warn" : "bad";
     const red = (p.red||[]).includes(k) ? ` <span style="color:var(--bad)">● red flag</span>` : "";
-    const sig = c.signals.length ? `<ul class="sig">${c.signals.map(s=>`<li><span class="pts">${s.points}</span> ${esc(s.why)}</li>`).join("")}</ul>` : "";
-    return `<div class="crit"><div class="row"><span>${k} · ${CRIT[k]}${red}</span><span style="color:${color(cl)}">${c.assessed?c.pct+"%":"not assessed"} <span style="color:var(--muted);font-weight:400">· w${c.weight}</span></span></div>
+    const sig = c.signals.length ? `<ul class="sig">${c.signals.map(s=>`<li><span class="pts"${tip(TIP.pts)}>${s.points}</span> ${esc(s.why)}</li>`).join("")}</ul>` : "";
+    return `<div class="crit"><div class="row"><span>${k} · ${CRIT[k]}${red}</span><span style="color:${color(cl)}"><span class="num"${tip(c.assessed?TIP.critPct:`Couldn't be assessed (e.g. hidden history); counts as ${DATA.meta.unassessed_pct}% in the total.`)}>${c.assessed?c.pct+"%":"not assessed"}</span> <span class="num" style="color:var(--muted);font-weight:400"${tip(TIP.weight)}>· w${c.weight}</span></span></div>
       <div class="q">${esc(c.name.split("—")[1]||c.name)}</div>
       <div class="meter"><span style="width:${c.assessed?c.pct:0}%;background:${color(cl)}"></span></div>${sig}</div>`;
   }).join("");
   pop.innerHTML = `<button class="closex" aria-label="Close">×</button>
     <div class="ph">${p.avatar?`<img class="av" src="${esc(p.avatar)}" alt="" onerror="this.style.visibility='hidden'">`:`<div class="av"></div>`}
       <div style="min-width:0"><div style="font-weight:700;overflow-wrap:anywhere">u/${esc(u)}</div><div class="facts">${facts.join(" · ")}</div></div>
-      <div class="big" style="color:${color(l)}">${p.score==null?"–":Math.round(p.score)}<small>${LABEL[p.label]}</small></div></div>
+      <div class="big" style="color:${color(l)}"${tip(TIP.score)}>${p.score==null?"–":Math.round(p.score)}<small>${LABEL[p.label]}</small></div></div>
     ${p.bio?`<div class="facts" style="color:var(--text)">${esc(p.bio)}</div>`:""}
     ${crits}
     <div class="foot-note">Score = weighted sum of C1–C5 (weights ${Object.entries(W).map(([k,v])=>k+" "+v).join(", ")}). Criteria that can't be assessed default to ${DATA.meta.unassessed_pct}%. Use the score as a prompt to check sources, not as proof.</div>`;
@@ -287,8 +363,9 @@ function threadAuthors(t){
 function health(t){
   const us = threadAuthors(t).filter(u=>P[u]);
   const flagged = us.filter(u=>["warn","bad"].includes(lv(u))).length;
-  const dots = us.slice(0,12).map(u=>`<i style="background:${color(lv(u))}" title="u/${esc(u)}"></i>`).join("");
-  return `<span class="thread-health" title="Scored participants in this thread">🛡️ <span class="dots">${dots}</span> ${us.length} scored${flagged?` · <span style="color:var(--warn)">${flagged} flagged</span>`:""}</span>`;
+  const dots = us.slice(0,12).map(u=>`<i style="background:${color(lv(u))}"></i>`).join("");
+  const why = `${us.length} participants in this thread have an authenticity score; each dot is one of them (green likely authentic, amber uncertain, red suspicious).` + (flagged?` ${flagged} are flagged as uncertain or suspicious.`:"");
+  return `<span class="thread-health"${tip(why)}>🛡️ <span class="dots">${dots}</span> ${us.length} scored${flagged?` · <span style="color:var(--warn)">${flagged} flagged</span>`:""}</span>`;
 }
 
 /* ---------- views ---------- */
@@ -299,11 +376,12 @@ function postCard(t, full){
   if(t.link){ try{ dom = `<a class="linkdom" href="${esc(t.link)}" target="_blank" rel="noopener">${esc(new URL(t.link).hostname)} ↗</a>`; }catch(_){} }
   const body = t.body ? (full ? `<div class="body">${md(t.body)}</div>` : `<div class="snip">${esc(t.body.slice(0,300))}</div>`) : "";
   return `<article class="card post" data-thread="${t.id}">
-    <div class="votes"><span class="arr">▲</span>${fmt(t.score)}<span class="arr">▼</span></div>
+    <div class="votes"><span class="arr">▲</span><span${tip(TIP.postVotes)}>${fmt(t.score)}</span><span class="arr">▼</span></div>
     <div class="post-main">
       <div class="meta"><span class="sub">r/${esc(t.sub)}</span><span>•</span>${by}<span>${ago(t.posted_at)}</span></div>
       <h2>${esc(t.title)}</h2>${dom}${body}
-      <div class="actions"><span>💬 ${n} Comments</span>${health(t)}</div>
+      ${full && LIVE() ? pill() : ""}
+      <div class="actions"><span${tip(LIVE() ? `Comments Reddit reports for this thread. We captured ${t.comments.length}${DATA.meta.reported_comments>t.comments.length?" (Reddit only renders the top of large threads)":""}.` : "Comments in this thread from accounts in the dataset.")}>💬 ${n} Comments</span>${health(t)}</div>
     </div></article>`;
 }
 function renderFeed(){
@@ -341,7 +419,7 @@ function renderThread(id){
       ${state.shield?warnFor(c.author):""}
       ${c.orphan?`<div class="orphan">↳ reply to a comment from an account outside the dataset</div>`:""}
       <div class="text">${md(c.body)}</div>
-      <div class="foot"><span>▲ ${fmt(c.score)} ▼</span><span>Reply</span><span>Share</span></div>
+      <div class="foot"><span${tip(TIP.cmtVotes)}>▲ ${fmt(c.score)} ▼</span><span>Reply</span><span>Share</span></div>
       ${c.kids.length?`<div class="children">${c.kids.map(node).join("")}</div>`:""}
     </div>`;
   };
@@ -360,33 +438,35 @@ function renderThread(id){
 function narrChip(id){
   if(!LIVE() || id==null || !N[id]) return "";
   const on = state.narrative===id ? " on" : "";
-  return `<button class="nchip${on}" data-narr="${id}" title="Narrative: ${esc(N[id].label)}">🧭 ${esc(N[id].label)}</button>`;
+  return `<button class="nchip${on}" data-narr="${id}"${tip(`Narrative: ${N[id].label} (${Math.round(N[id].weighted_share*100)}% of the thread's engagement). Click to highlight its comments.`)}><i class="sw" style="background:${ncolor(id)}"></i>${esc(N[id].label)}</button>`;
 }
 
 /* ---------- sidebar ---------- */
 function renderSide(){
   const s = DATA.meta.summary, lc = s.label_counts, tot = Object.values(lc).reduce((a,b)=>a+b,0);
   const order = ["likely_authentic","uncertain","suspicious","no_data"];
-  const dist = order.map(k=>`<span style="width:${(lc[k]||0)/tot*100}%;background:${color(LV[k])}"></span>`).join("");
-  const leg = order.map(k=>`<i style="background:${color(LV[k])}"></i><span>${LABEL[k]}</span><b>${lc[k]||0}</b>`).join("");
-  const crit = ["C1","C2","C3","C4","C5"].map(k=>`<li><b>${k}</b><span>${CRIT[k]} <span style="color:var(--muted)">(w${W[k]})</span></span><span style="text-align:right">${s.mean_criterion_pct[k]}%</span></li>`).join("");
+  const BAND = {likely_authentic:"score 70+ and no red flag", uncertain:"score 40–69, or 70+ with a red flag (a criterion at 20% or less)", suspicious:"score below 40, or suspended by Reddit", no_data:"profile couldn't be fetched (deleted, private or timed out)"};
+  const dist = order.map(k=>`<span style="width:${(lc[k]||0)/tot*100}%;background:${color(LV[k])}"${tip(`${LABEL[k]}: ${lc[k]||0} of ${tot} scored accounts (${Math.round((lc[k]||0)/tot*100)}%)`)}></span>`).join("");
+  const leg = order.map(k=>`<i style="background:${color(LV[k])}"></i><span>${LABEL[k]}</span><b class="num"${tip(`${lc[k]||0} accounts labelled ${LABEL[k].toLowerCase()}: ${BAND[k]}.`)}>${lc[k]||0}</b>`).join("");
+  const CDESC = {C1:"C1 Account profile: is this an established, real person?", C2:"C2 Content originality: did this person write it?", C3:"C3 Coordination: is it acting in concert with others?", C4:"C4 Engagement legitimacy: did it earn its karma?", C5:"C5 Behavioural history: does the account do this elsewhere?"};
+  const crit = ["C1","C2","C3","C4","C5"].map(k=>`<li><b>${k}</b><span${tip(CDESC[k]+" "+TIP.weight)}>${CRIT[k]} <span style="color:var(--muted)">(w${W[k]})</span></span><span class="num" style="text-align:right"${tip(`Average ${k} score across the ${s.scored} scored accounts. 100% = no warning signs.`)}>${s.mean_criterion_pct[k]}%</span></li>`).join("");
   const flagged = Object.entries(P).filter(([u,p])=>["uncertain","suspicious"].includes(p.label)).sort((a,b)=>(a[1].score??0)-(b[1].score??0));
   const fl = flagged.map(([u,p])=>{
     const why = Object.values(p.criteria).flatMap(c=>c.signals).sort((a,b)=>a.points-b.points).slice(0,2).map(x=>x.why).join(" · ");
     return `<li>${user(u)}<div class="why">${esc(why)}</div></li>`;
   }).join("");
   document.getElementById("side").innerHTML = (LIVE() ? narrativesCard() : "") + `
-    <div class="card"><div class="hd shield">🛡️ Authenticity Shield</div><div class="bd">
+    <div class="card" id="shieldCard"><div class="hd shield">🛡️ Authenticity Shield</div><div class="bd">
       <p>${LIVE() ? "The thread's most engaged commenters are" : "Every account here is"} scored 0–100 on five signals of authentic behaviour. Click any badge to see why.</p>
       <div class="dist">${dist}</div><div class="legend">${leg}</div>
-      <p style="margin-top:12px;font-size:12px;color:var(--muted)">Mean score ${s.mean_score} across ${s.scored} scored profiles</p>
+      <p style="margin-top:12px;font-size:12px;color:var(--muted)"><span class="num"${tip("The average authenticity score (0–100) of the scored accounts. "+TIP.score)}>Mean score ${s.mean_score}</span> across ${s.scored} scored profiles</p>
       <ul class="crit-list">${crit}</ul>
     </div></div>
-    <div class="card"><div class="hd shield">🎚️ Filter comments</div><div class="bd">
+    <div class="card" id="filterCard"><div class="hd shield">🎚️ Filter comments</div><div class="bd">
       <label for="thr" style="font-size:13px">Collapse comments from accounts scoring below <b id="thrv">${state.threshold||"off"}</b></label>
       <input class="slider" id="thr" type="range" min="0" max="95" step="5" value="${state.threshold}">
     </div></div>
-    <div class="card"><div class="hd">⚠ Flagged accounts</div><div class="bd">${fl ? `<ul class="flagged">${fl}</ul>` : `<p style="margin:0;font-size:13px;color:var(--muted)">No scored account is flagged as uncertain or suspicious.</p>`}</div></div>
+    <div class="card" id="flaggedCard"><div class="hd">⚠ Flagged accounts</div><div class="bd">${fl ? `<ul class="flagged">${fl}</ul>` : `<p style="margin:0;font-size:13px;color:var(--muted)">No scored account is flagged as uncertain or suspicious.</p>`}</div></div>
     <div class="card"><div class="bd" style="font-size:12px;color:var(--muted)">
       <b style="color:var(--text)">How to read a badge</b><br>✓/⚠ + overall score, then five bars for C1–C5. A short bar means that criterion lost points; a dot means it couldn't be assessed (e.g. hidden history). A low score is a reason to check sources, not proof of a bot.
     </div></div>` + (LIVE() ? notesCard() : "");
@@ -400,19 +480,19 @@ function narrativesCard(){
   const ns = DATA.narratives || [];
   const li = ns.map(n=>{
     const on = state.narrative===n.id ? " on" : "";
-    const sc = n.mean_score==null ? "no scored commenters" : `avg authenticity ${Math.round(n.mean_score)} (${n.n_scored} scored)`;
-    const fl = n.flagged.length ? ` · <span style="color:var(--warn)">${n.flagged.length} flagged</span>` : "";
+    const sc = n.mean_score==null ? "no scored commenters" : `<span class="num"${tip(`Average authenticity score of the ${n.n_scored} scored accounts that commented in this narrative (of ${n.n_authors} accounts in it).`)}>avg authenticity ${Math.round(n.mean_score)}</span> (${n.n_scored} scored)`;
+    const fl = n.flagged.length ? ` · <span style="color:var(--warn)"${tip("Accounts in this narrative labelled uncertain or suspicious: u/"+n.flagged.join(", u/"))}>${n.flagged.length} flagged</span>` : "";
     return `<li class="${on}"><button data-narr="${n.id}" aria-pressed="${!!on}">
-      <div class="nl">${esc(n.label)}</div>
-      <div class="bar"><span style="width:${Math.max(2,Math.round(n.weighted_share*100))}%"></span></div>
-      <div class="nm">${Math.round(n.weighted_share*100)}% of engagement · ${n.n_comments} comments · ${sc}${fl}</div></button></li>`;
+      <div class="nl"><i class="sw" style="background:${ncolor(n.id)};margin-right:6px"></i>${esc(n.label)}</div>
+      <div class="bar"><span style="width:${Math.max(2,Math.round(n.weighted_share*100))}%;background:${ncolor(n.id)}"></span></div>
+      <div class="nm"><span class="num"${tip(`Share of the thread's engagement: each comment counts log(1+upvotes) + ½·log(1+replies), so popular comments weigh more without one viral comment drowning out the rest. ${Math.round(n.share*100)}% of comments.`)}>${Math.round(n.weighted_share*100)}% of engagement</span> · ${n.n_comments} comments · ${sc}${fl}</div></button></li>`;
   }).join("");
   const kw = (DATA.meta.topic_keywords||[]).slice(0,10).map(k=>`<span>${esc(k)}</span>`).join("");
-  return `<div class="card"><div class="hd">🧭 Narratives in this thread</div><div class="bd">
+  return `<div class="card" id="narrCard"><div class="hd">🧭 Narratives in this thread</div><div class="bd">
     <p style="font-size:12px;color:var(--muted)">Comments grouped by what they argue, sized by engagement (upvotes and replies). Click one to highlight its comments.</p>
     <ul class="narr">${li}</ul>
-    ${kw?`<div style="font-size:12px;color:var(--muted);margin-top:10px">Thread topic keywords</div><div class="kw">${kw}</div>`:""}
-    <p style="margin:12px 0 0"><a href="${esc(DATA.meta.map_url)}" target="_blank" rel="noopener">Open the narrative map ↗</a></p>
+    ${kw?`<div style="font-size:12px;color:var(--muted);margin-top:10px"${tip("Words that set this thread apart from its commenters' other activity. Used to check whether an account posts about nothing but this topic (C5).")}>Thread topic keywords</div><div class="kw">${kw}</div>`:""}
+    <p style="margin:12px 0 0;display:flex;gap:12px;flex-wrap:wrap"><a href="javascript:void 0" data-pill>Breakdown &amp; method</a><a id="mapLink" href="${esc(DATA.meta.map_url)}" target="_blank" rel="noopener">Open the narrative map ↗</a></p>
   </div></div>`;
 }
 function notesCard(){
@@ -429,9 +509,149 @@ function toggleNarrative(id){
   renderSide(); route();
 }
 
+/* ---------- narrative distribution (pill + mini dashboard) ---------- */
+const NCOL = ["var(--n1)","var(--n2)","var(--n3)"], OCOL = "var(--nother)", NOISE = -1;
+let PARTS = [];
+/* Top 3 narratives by engagement share + "Others" (smaller narratives and unclustered comments).
+   Mirrors candor/view.py distribution(). */
+function pillParts(){
+  const ns = DATA.narratives || [];
+  const top = ns.filter(n=>n.id!==NOISE).sort((a,b)=>b.weighted_share-a.weighted_share).slice(0,3);
+  const parts = top.map((n,i)=>({id:n.id, label:n.label, share:n.weighted_share, color:NCOL[i]}));
+  const rest = ns.reduce((a,n)=>a+n.weighted_share,0) - parts.reduce((a,x)=>a+x.share,0);
+  if(rest>0.0005) parts.push({id:null, label:"Others", share:rest, color:OCOL});
+  return parts;
+}
+const ncolor = id => (PARTS.find(x=>x.id===id && id!=null) || {color:OCOL}).color;
+const OTHERS_TIP = "Others = smaller narratives plus comments too short or off-topic to join one (jokes, one-word replies).";
+function pill(){
+  if(!PARTS.length) return "";
+  const pc = pcts(PARTS.map(x=>x.share));
+  const segs = PARTS.map((x,i)=>`<span style="flex:${x.share} 1 0;background:${x.color}"${tip(`${pc[i]}% · ${x.label}${x.id==null?". "+OTHERS_TIP:""}`)}></span>`).join("");
+  const leg = PARTS.map((x,i)=>`<span class="pl"><i style="background:${x.color}"></i><em>${esc(x.label)}</em><b>${pc[i]}%</b></span>`).join("");
+  return `<button class="npill" type="button" data-pill aria-haspopup="dialog" aria-label="Narrative distribution: ${esc(PARTS.map((x,i)=>x.label+" "+pc[i]+"%").join(", "))}. Open the breakdown.">
+    <span class="npill-hd">🧭 Narrative distribution <span class="how">How is this computed? ›</span></span>
+    <span class="npill-bar">${segs}</span><span class="npill-leg">${leg}</span></button>`;
+}
+/* Per pill part: comments, accounts and engagement by authenticity band (computed from the thread). */
+const BANDS = [["ok","Likely authentic"],["warn","Uncertain"],["bad","Suspicious"],["na","Not scored"]];
+function partStats(){
+  const t = T[0], replies = {};
+  t.comments.forEach(c=>{ replies[c.parent] = (replies[c.parent]||0) + 1; });
+  const w = c => Math.log1p(Math.max(c.score||0,0)) + 0.5*Math.log1p(replies[c.id]||0);
+  const key = id => PARTS.some(x=>x.id===id && id!=null) ? id : "others";
+  const S = {}, all = {eng:{ok:0,warn:0,bad:0,na:0}, accounts:{}};
+  for(const c of t.comments){
+    if(c.narrative==null) continue;  // bots and deleted comments aren't clustered
+    const k = key(c.narrative), b = lv(c.author);
+    const st = S[k] ??= {comments:0, eng:{ok:0,warn:0,bad:0,na:0}, accounts:{}};
+    st.comments++; st.eng[b] += w(c); st.accounts[c.author] = b;
+    all.eng[b] += w(c); all.accounts[c.author] = b;
+  }
+  const count = acc => { const n = {ok:0,warn:0,bad:0,na:0}; Object.values(acc).forEach(b=>n[b]++); return n; };
+  for(const st of [...Object.values(S), all]) st.byAcc = count(st.accounts);
+  return {S, all};
+}
+function compBar(byAcc){
+  const tot = Object.values(byAcc).reduce((a,b)=>a+b,0) || 1;
+  return BANDS.filter(([k])=>byAcc[k]).map(([k,l])=>`<span style="width:${byAcc[k]/tot*100}%;background:var(--${k})"${tip(`${byAcc[k]} of ${tot} accounts: ${l.toLowerCase()}`)}></span>`).join("");
+}
+function openModal(){
+  if(!LIVE() || !PARTS.length) return;
+  const t = T[0], {S, all} = partStats(), pc = pcts(PARTS.map(x=>x.share));
+  const share = e => { const tot = Object.values(e).reduce((a,b)=>a+b,0); return tot ? Math.round(e.ok/tot*100) : 0; };
+  const nScored = Object.keys(P).length, clustered = t.comments.filter(c=>c.narrative!=null).length;
+  const noise = (DATA.narratives||[]).find(n=>n.id===NOISE);
+  const rows = PARTS.map((x,i)=>{
+    const st = S[x.id==null?"others":x.id] || {comments:0, byAcc:{ok:0,warn:0,bad:0,na:0}, eng:{ok:0,warn:0,bad:0,na:0}, accounts:{}};
+    const nAcc = Object.keys(st.accounts).length, n = N[x.id];
+    const leg = BANDS.map(([k,l])=>`<span><i style="background:var(--${k})"></i>${st.byAcc[k]} ${l.toLowerCase()}</span>`).join("");
+    const kw = n && n.keywords.length ? ` · <span${tip("Words that set this narrative apart from the rest of the thread (c-TF-IDF).")}>${esc(n.keywords.slice(0,5).join(", "))}</span>` : "";
+    return `<div class="mrow">
+      <div class="mh"><i class="sw" style="background:${x.color}"></i><span>${esc(x.label)}</span><span class="share num"${tip(`${pc[i]}% of the thread's engagement`)}>${pc[i]}%</span></div>
+      <div class="mm">${st.comments} comments · ${nAcc} accounts${kw}${x.id==null?`<br>${esc(OTHERS_TIP)}`:""}</div>
+      <div class="ml">Who pushes it</div>
+      <div class="cbar">${compBar(st.byAcc)}</div>
+      <div class="cleg">${leg}</div>
+      <div class="mm" style="margin-top:4px"><span class="num"${tip("Engagement = log(1+upvotes) + ½·log(1+replies) per comment, summed by the label of the comment's author.")}>${share(st.eng)}% of its engagement</span> comes from likely-authentic accounts.</div>
+      ${x.id!=null?`<button class="hl" type="button" data-hl="${x.id}">Highlight in thread</button>`:""}
+    </div>`;
+  }).join("");
+  const m = document.querySelector("#nmodal .modal");
+  m.innerHTML = `<button class="closex" type="button" aria-label="Close">×</button>
+    <h2 id="nm-title">Narrative distribution</h2>
+    <p class="msub">${esc(t.title)}</p>
+    ${pill().replace('class="npill"','class="npill" tabindex="-1"').replace(/<span class="npill-hd">[\s\S]*?<\/span>\s*<\/span>/,"")}
+    <div class="kpis">
+      <div class="kpi"${tip("Narratives found: groups of comments that make the same point.")}><b>${(DATA.narratives||[]).filter(n=>n.id!==NOISE).length}</b><span>narratives</span></div>
+      <div class="kpi"${tip(`Comments that went into the analysis (of ${t.comments.length} captured; bots and deleted comments are left out).`)}><b>${clustered}</b><span>comments analysed</span></div>
+      <div class="kpi"${tip(`We score the ${nScored} most engaged commenters; the other ${Math.max(0,Object.keys(all.accounts).length-nScored)} accounts show as not scored.`)}><b>${nScored}</b><span>accounts scored</span></div>
+      <div class="kpi"${tip("Share of all engagement in the thread that comes from accounts labelled likely authentic. Engagement from unscored accounts counts against this, so it's a lower bound.")}><b>${share(all.eng)}%</b><span>engagement from likely-authentic accounts</span></div>
+    </div>
+    ${rows}
+    <details class="howto" open><summary>How is this computed?</summary><ol>
+      <li><b>Read.</b> We captured ${t.comments.length} comments from the thread${DATA.meta.reported_comments>t.comments.length?` (Reddit reports ${DATA.meta.reported_comments}, but only renders the top of large threads)`:""}. Bots and deleted comments are dropped.</li>
+      <li><b>Group by meaning.</b> Each comment is turned into an embedding (Gemini), placed on a map by meaning (UMAP) and clustered (HDBSCAN). Comments that make the same point form a narrative; an NVIDIA Nemotron model names it. ${noise?`${noise.n_comments} comments didn't fit any narrative and go into Others.`:""}</li>
+      <li><b>Weigh by engagement.</b> Each comment counts <code>log(1 + upvotes) + ½ · log(1 + replies)</code>, so popular comments weigh more without one viral comment drowning the rest. A narrative's share is its comments' total over the whole thread's. The bar shows the 3 largest; the rest is Others.</li>
+      <li><b>Check who's behind it.</b> We score the ${nScored} most engaged commenters 0–100 on five criteria (profile, originality, coordination, engagement, behaviour): 70+ likely authentic, 40–69 uncertain, below 40 suspicious. "Who pushes it" counts each narrative's accounts by that label.</li>
+    </ol><p style="margin:8px 0 0;font-size:12px;color:var(--muted)">A narrative backed mostly by uncertain or suspicious accounts is a reason to look closer, not proof of manipulation.</p></details>
+    <p style="margin:12px 0 0;font-size:13px"><a href="${esc(DATA.meta.map_url)}" target="_blank" rel="noopener">Open the full narrative map ↗</a> · dots sized by upvotes, faded by author authenticity</p>`;
+  modalReturn = document.activeElement;
+  document.getElementById("nmodal").classList.add("open");
+  m.querySelector(".closex").focus();
+}
+let modalReturn = null;
+function closeModal(){
+  const bg = document.getElementById("nmodal"); if(!bg.classList.contains("open")) return;
+  bg.classList.remove("open"); hideTip();
+  if(modalReturn && modalReturn.focus) modalReturn.focus({preventScroll:true});
+}
+document.getElementById("nmodal").addEventListener("click", e=>{
+  if(e.target.id==="nmodal" || e.target.closest(".closex")){ closeModal(); return; }
+  const hl = e.target.closest("[data-hl]");
+  if(hl){ closeModal(); state.narrative = null; toggleNarrative(+hl.dataset.hl);
+    const first = document.querySelector(".cmt:not(.dim)"); if(first) first.scrollIntoView({block:"center"}); }
+});
+document.addEventListener("keydown", e=>{
+  const bg = document.getElementById("nmodal");
+  if(!bg.classList.contains("open")) return;
+  if(e.key==="Escape"){ e.stopPropagation(); closeModal(); }
+  else if(e.key==="Tab"){  // keep focus in the dialog
+    const f = [...bg.querySelectorAll("button:not([tabindex='-1']),a[href],summary")]; if(!f.length) return;
+    if(e.shiftKey && document.activeElement===f[0]){ e.preventDefault(); f[f.length-1].focus(); }
+    else if(!e.shiftKey && document.activeElement===f[f.length-1]){ e.preventDefault(); f[0].focus(); }
+  }
+}, true);
+document.addEventListener("click", e=>{
+  if(e.target.closest("#nmodal")) return;
+  const pl = e.target.closest("[data-pill]"); if(pl){ e.preventDefault(); openModal(); }
+});
+
+/* ---------- tooltips ([data-tip]): hover, keyboard focus, tap ---------- */
+const tipbox = document.getElementById("tipbox");
+let tipFor = null;
+function showTip(el){
+  tipFor = el; tipbox.textContent = el.dataset.tip; tipbox.classList.add("on");
+  const r = el.getBoundingClientRect(), b = tipbox.getBoundingClientRect();
+  let top = r.top - b.height - 8; if(top < 8) top = r.bottom + 8;
+  tipbox.style.top = top + "px";
+  tipbox.style.left = Math.max(8, Math.min(r.left + r.width/2 - b.width/2, innerWidth - b.width - 8)) + "px";
+}
+function hideTip(){ tipFor = null; tipbox.classList.remove("on"); }
+document.addEventListener("mouseover", e=>{ const t = e.target.closest("[data-tip]"); if(t && t!==tipFor) showTip(t); else if(!t && tipFor) hideTip(); });
+document.addEventListener("focusin", e=>{ const t = e.target.closest("[data-tip]"); t ? showTip(t) : hideTip(); });
+document.addEventListener("focusout", hideTip);
+addEventListener("scroll", hideTip, {passive:true});
+// touch: a tap on a plain number shows its explanation (buttons keep their normal action)
+document.addEventListener("touchstart", e=>{
+  const t = e.target.closest("[data-tip]");
+  if(!t){ hideTip(); return; }
+  if(!t.closest("button,a")) showTip(t);
+}, {passive:true});
+
 /* ---------- interactions ---------- */
 document.getElementById("main").addEventListener("click", e=>{
-  if(e.target.closest("[data-user]")||e.target.closest("a[href^='http']")) return;
+  if(e.target.closest("[data-user]")||e.target.closest("a[href^='http']")||e.target.closest("[data-pill]")) return;
   const nc = e.target.closest("[data-narr]"); if(nc){ toggleNarrative(+nc.dataset.narr); return; }
   const retry = e.target.closest("[data-retry]"); if(retry){ retryAnalysis(retry.dataset.retry); return; }
   const s = e.target.closest("[data-sort]"); if(s){ state.sort=s.dataset.sort; renderFeed(); return; }
@@ -460,6 +680,7 @@ addEventListener("hashchange", route);
 function boot(data){
   DATA = data; P = DATA.profiles; T = DATA.threads; W = DATA.meta.weights;
   N = Object.fromEntries((DATA.narratives||[]).map(n=>[n.id,n]));
+  PARTS = LIVE() ? pillParts() : [];
   document.getElementById("search").textContent = "🔍 Search r/" + [...new Set(T.map(t=>t.sub))].slice(0,3).join(", r/");
   if(LIVE()){
     document.body.classList.add("live");
@@ -467,7 +688,33 @@ function boot(data){
     document.getElementById("disclaimer").textContent = "Candor analysis of a public Reddit thread. Not affiliated with Reddit. Scores are prompts to check sources, not proof.";
   }
   renderSide(); route();
+  if(window.CandorTour) CandorTour.setup(LIVE() ? {key:"candor_tour_result", steps:resultTour} : {key:"candor_tour_demo", steps:demoTour});
 }
+
+/* ---------- tutorial (web/tour.js) ---------- */
+const B = (cls, txt) => `<span class="k lv-${cls}">${txt}</span>`;
+function resultTour(){ return [
+  {title:"Reading a result", body:`<p>This is the Reddit thread you analysed, with Candor's layer on top. Here's what each part tells you.</p><p style="color:#5d6478;font-size:13px">Tip: hover over (or tap) any number to see what it means.</p>`},
+  {sel:".npill", title:"Narrative distribution", body:`<p>The thread's comments, grouped by <b>what they argue</b>. Each colour is a narrative; its width is its share of the thread's engagement (upvotes and replies).</p><p>The 3 largest are shown; everything else is in <b>Others</b>.</p>`},
+  {sel:".npill", title:"How is it computed?", body:`<p>Click the bar to open the breakdown: the top narratives, <b>which kinds of accounts push each one</b>, and a step-by-step explanation of the method.</p>`},
+  {sel:".cmt .nchip", title:"Each comment's narrative", body:`<p>Every comment carries the narrative it belongs to. Click a chip to highlight all of that narrative's comments; click it again to clear.</p>`},
+  {sel:".cmt button.badge", title:"Authenticity badge", body:`<p>A 0–100 score for the commenter's account:</p><ul><li>${B("ok","✓ 70+")} likely authentic</li><li>${B("warn","⚠ 40–69")} uncertain</li><li>${B("bad","⚠ &lt;40")} suspicious</li><li>${B("na","?")} not scored (we score the most engaged commenters)</li></ul><p>The five bars are the five criteria, C1–C5. <b>Click a badge</b> to see the evidence behind it.</p>`},
+  {sel:"#narrCard", title:"Narratives in this thread", body:`<p>Each narrative's <b>share of engagement</b>, how many comments it has, and the <b>average authenticity</b> of the accounts behind it. "Flagged" counts its uncertain or suspicious accounts.</p><p>Click a narrative to highlight its comments.</p>`},
+  {sel:"#shieldCard", title:"Authenticity Shield", body:`<p>How the scored accounts split between likely authentic, uncertain and suspicious, and the average score on each criterion: C1 profile, C2 originality, C3 coordination, C4 engagement, C5 behaviour.</p>`},
+  {sel:"#filterCard", title:"Filter comments", body:`<p>Collapse comments from accounts that score below a threshold you choose.</p>`},
+  {sel:"#shieldBtn", title:"Labels on or off", body:`<p>Hide Candor's labels to see the thread the way Reddit shows it.</p>`},
+  {sel:"#mapLink", title:"Narrative map", body:`<p>Every comment as a dot, placed by meaning. Dots are <b>sized by upvotes</b> and <b>fade with their author's authenticity</b>, so big, solid clusters are narratives with real engagement from authentic-looking accounts.</p>`},
+  {title:"That's it", body:`<p>Scores are prompts to check sources, not proof of a bot. Open this tour again any time from <b>? Tutorial</b> in the top bar.</p>`, action: AID==="example" ? {label:"Analyze your own post →", href:"/"} : null},
+];}
+function demoTour(){ return [
+  {title:"The demo feed", body:`<p>Threads we've already analysed, shown as a Reddit feed with Candor's authenticity layer on top. Every account here has been scored.</p>`},
+  {sel:".post .badge", title:"Authenticity badge", body:`<p>A 0–100 score for the account: ${B("ok","✓")} likely authentic (70+), ${B("warn","⚠")} uncertain (40–69), ${B("bad","⚠")} suspicious (below 40). The bars are the five criteria. Click it for the evidence.</p>`},
+  {sel:".post .thread-health", title:"Thread health", body:`<p>One dot per scored participant, coloured by their label, and how many are flagged.</p>`},
+  {sel:".sortbar", title:"Sort the feed", body:`<p><b>Most flagged</b> brings the threads with the most uncertain or suspicious participants to the top.</p>`},
+  {sel:"#shieldCard", title:"Authenticity Shield", body:`<p>How all scored accounts split by label, and the average score on each criterion.</p>`},
+  {sel:"#flaggedCard", title:"Flagged accounts", body:`<p>Accounts labelled uncertain or suspicious, with the main reasons.</p>`},
+  {title:"Try it live", body:`<p>Paste any Reddit thread on the Analyze tab: Candor maps its narratives and scores its most engaged commenters in 1–2 minutes.</p>`, action:{label:"Analyze a post →", href:"/"}},
+];}
 
 /* ---------- live analyses: ?id=<analysis> ---------- */
 const AID = new URLSearchParams(location.search).get("id");
@@ -492,6 +739,11 @@ async function retryAnalysis(url){
   else document.querySelector(".prog")?.insertAdjacentHTML("beforeend", `<div class="msg err">${esc(j.detail || "Could not start the analysis")}</div>`);
 }
 async function poll(){
+  if(AID==="example"){  // bundled example for the tutorial: web/example/
+    const v = await fetch("example/view.json").catch(()=>null);
+    if(v && v.ok){ boot(await v.json()); return; }
+    progressView({status:"error", error:"The example analysis isn't available."}); return;
+  }
   try{
     const r = await fetch(`/api/analyses/${encodeURIComponent(AID)}`);
     if(r.status===404){ progressView({status:"error", error:"We couldn't find this analysis."}); return; }

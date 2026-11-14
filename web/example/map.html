@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Narrative Map</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --border: rgba(11,11,11,0.10);
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --context: #b9b7af;
+  --noise: #d6d4cc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #d95926; --context: #55544f; --noise: #343431;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a;
+  --border: rgba(255,255,255,0.10);
+  --series-1: #3987e5; --series-2: #d95926; --context: #55544f; --noise: #343431;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: max(20px, env(safe-area-inset-top)) 20px 40px;
+}
+.wrap { max-width: 1400px; margin: 0 auto; }
+header h1 { font-size: 22px; margin: 0 0 2px; font-weight: 650; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--ink-2); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 18px 0; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile .v { font-size: 24px; font-weight: 650; }
+.tile .k { color: var(--ink-2); font-size: 12px; }
+.layout { display: grid; grid-template-columns: minmax(260px, 320px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+aside.panel { position: sticky; top: max(12px, env(safe-area-inset-top)); max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
+@media (max-width: 860px) { aside.panel { position: static; max-height: 360px; } }
+.panel-head { padding: 12px 14px 8px; border-bottom: 1px solid var(--border); }
+.panel-head h2 { font-size: 13px; margin: 0 0 8px; color: var(--ink-2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+input[type=search] {
+  width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--ink); font: inherit;
+}
+#topic-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+#topic-list li button {
+  all: unset; display: block; width: 100%; box-sizing: border-box; cursor: pointer;
+  padding: 8px 10px; border-radius: 7px;
+}
+#topic-list li button:hover { background: var(--surface-2); }
+#topic-list li button[aria-pressed="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--series-1); }
+#topic-list li button:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+.t-label { font-weight: 600; display: block; }
+.t-meta { color: var(--ink-2); font-size: 12px; display: block; }
+.t-bar { height: 3px; border-radius: 2px; background: var(--series-1); margin-top: 6px; opacity: .85; }
+.map-head { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.map-head h2 { margin: 0; font-size: 17px; }
+.map-head .sub { color: var(--ink-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--ink-2); font-size: 12px; margin-left: auto; align-items: center; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.legend label { cursor: pointer; }
+#map { width: 100%; height: min(68vh, 640px); min-height: 360px; }
+.hint { color: var(--muted); font-size: 12px; padding: 0 14px 10px; margin: 0; }
+h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; margin: 22px 2px 10px; font-weight: 600; }
+.clouds { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; position: relative; }
+.card.topic-card { grid-column: 1 / -1; }
+.card h4 { margin: 0; font-size: 15px; }
+.card .meta { color: var(--ink-2); font-size: 12px; margin-bottom: 6px; }
+.card canvas { width: 100%; height: 190px; display: block; }
+.card.topic-card canvas { height: 220px; }
+.card.hot { box-shadow: 0 0 0 2px var(--series-2); }
+.examples { margin: 8px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--border); }
+.examples li { padding: 7px 0 0; color: var(--ink-2); font-size: 12.5px; }
+.examples b { color: var(--ink); font-weight: 600; }
+.tip {
+  position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.empty { color: var(--muted); padding: 16px; }
+.tile[data-tip], .bands[data-tip] { cursor: help; }
+.tile .k { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+.legend .enc { display: none; gap: 6px 14px; flex-wrap: wrap; align-items: center; }
+.legend .enc.on { display: flex; }
+.legend .ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--series-1); margin-right: 5px; vertical-align: -1px; }
+.legend .fade { display: inline-flex; gap: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend .fade i { margin: 0; }
+.bands { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-2); margin: 6px 0 2px; }
+.bands span { display: block; height: 100%; }
+.band-txt { color: var(--ink-2); font-size: 12px; }
+:root { --ok: #1a7f37; --warn: #b07d00; --bad: #cf222e; --na: #b9b7af; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; } }
+:root[data-theme="dark"] { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; }
+.tip { max-width: 300px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.3/plotly-gl2d.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Narrative Map</h1>
+    <p id="subtitle"></p>
+  </header>
+  <section class="tiles" id="tiles"></section>
+  <div class="layout">
+    <aside class="panel" aria-label="Topics">
+      <div class="panel-head">
+        <h2>Topics</h2>
+        <input type="search" id="topic-search" placeholder="Filter topics or keywords…" aria-label="Filter topics">
+      </div>
+      <ol id="topic-list"></ol>
+    </aside>
+    <main>
+      <section class="panel">
+        <div class="map-head">
+          <h2 id="sel-title"></h2><span class="sub" id="sel-sub"></span>
+          <div class="legend">
+            <span><i style="background:var(--series-1)"></i>Selected topic</span>
+            <span><i style="background:var(--series-2)"></i>Hovered narrative</span>
+            <span><i style="background:var(--context)"></i>Other topics</span>
+            <label><input type="checkbox" id="show-noise"> Noise</label>
+            <label><input type="checkbox" id="zoom-topic"> Zoom to topic</label>
+          </div>
+          <div class="legend enc" id="enc" style="flex-basis:100%;margin-left:0">
+            <label id="enc-up" hidden data-tip="Bigger dot = more upvotes (square-root scale, so a few viral comments don't swamp the map)."><input type="checkbox" id="size-up" checked> Size = upvotes</label>
+            <label id="enc-auth" hidden data-tip="Each dot fades with its author's authenticity score: solid at 90+, about half at 55, faint below 30. Hollow rings are authors we didn't score (only a thread's most engaged commenters are scored)."><input type="checkbox" id="fade-auth" checked>
+              Opacity = author authenticity <span class="fade" aria-hidden="true"><i style="background:var(--series-1);opacity:1"></i><i style="background:var(--series-1);opacity:.55"></i><i style="background:var(--series-1);opacity:.2"></i></span>high → low · <span class="ring" aria-hidden="true"></span>not scored</label>
+          </div>
+        </div>
+        <div id="map" role="img" aria-label="2D map of all comments, coloured by the selected topic"></div>
+        <p class="hint" id="hint">Each dot is a post or comment, placed by meaning (UMAP of sentence embeddings). Click a dot to select its topic; scroll to zoom, double-click to reset.</p>
+      </section>
+      <h3 class="section">Word clouds <span style="text-transform:none;letter-spacing:0;font-weight:400">· c-TF-IDF keywords, larger = more distinctive</span></h3>
+      <div class="clouds" id="clouds"></div>
+    </main>
+  </div>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script type="application/json" id="candor-data">{"meta":{"source":"r/politics · Trump's transportation chief demands $50 billion to prevent another huge FAA fiasco","labels":"LLM (nemotron-3.5-super-vl)","generated":"2026-11-14 19:38 UTC","n_items":34,"n_noise":5,"has_upvotes":true,"has_authenticity":true,"engagement":{"upvotes":28568,"by_band":{"ok":28208,"warn":0,"bad":0,"na":394}},"params":{"embedder":"gemini","min_cluster_size":3,"selection":"eom","topic_method":"agglomerative","topic_threshold":0.06}},"points":{"x":[2.208,2.685,2.349,3.518,2.301,2.937,2.266,3.186,2.842,3.115,3.858,2.755,2.968,1.872,2.197,4.029,1.864,4.298,3.679,3.542,3.665,3.415,4.469,4.132,4.255,3.533,4.414,2.008,4.344,2.226,3.309,2.923,4.247,3.831],"y":[-4.285,-4.533,-2.259,-2.884,-2.815,-5.032,-4.961,-3.11,-4.625,-2.601,-2.931,-2.274,-1.853,-2.927,-3.744,-2.275,-4.039,-3.896,-4.211,-2.132,-1.645,-1.09,-3.014,-4.337,-1.283,-3.549,-1.55,-4.66,-2.131,-1.904,-4.686,-3.361,-3.372,-1.212],"narrative":[0,0,1,1,1,0,0,1,0,1,1,1,1,-1,0,-1,0,1,-1,1,1,-1,1,1,1,1,1,0,1,1,0,1,1,-1],"topic":[1,1,0,0,0,1,1,0,1,0,0,0,0,-1,1,-1,1,0,-1,0,0,-1,0,0,0,0,0,1,0,0,1,0,0,-1],"author":["brithus","brithus","Humble_but_Hostile","Interesting_Cap_5158","KennyLog1n","Restroom406","WontThinkStraight","everythingbeeps","SpecialistOk7296","bigwavedave000","Mikethebest78","Luugrin","Scipio-Byzantine","Obvious_Role8849","Tokie-Dokie","canadiuman","Icy_System_633","Royale_AJS","jojojawn","Busy-Difficulty-4757","MikeyInLA","MrLurid","Carsharr","Taapacoyne","siamonsez","mrbeck1","Lizuka","Krazynewf709","Oceanbreeze871","CJDistasio","Teepeaparty","JGWisenheimer","stjones03","julianriv"],"subreddit":["politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics","politics"],"kind":["post","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment"],"text":["Trump's transportation chief demands $50 billion to prevent another huge FAA fiasco","It seems rather interesting that early this morning, hours before this 'emergency' grounded all flights, Duffy and ​Vought were urgently pushing for Congress to award another 30 billion before the end of the year during the lame duck session. Several Republicans seemed hesitant and now conveniently it is suddenly a na…","Republicans have controlled congress since 2024 but now all of a sudden he needs $50 billion from the incoming Democrats","Our own government cyber attacked us and wants us to give them 50 billion so they don’t do it again. Got it.","Why give $50 billion to someone who couldn't get it done with the first $50 billion and doesn't have a clear plan for what to do? The Trump administration is out of its depth. They do not know how to govern, how to budget, how to plan, or how to lead. They just know how to shout, call people names, hurl insults, and p…","Air Space Intelligence was founded in 2018, and is the startup tech company that was awarded two contracts to revamp the FAA flight control system, it is owned by venture capital firm Andreessen Horowitz, which is managed by three partners including Katherine Boyle who interned at Pete Thiel owned Founders fund a vent…","The Department of Homeland Security says it wants $50 billion to replace aging technology that led to Friday's ground stop. \"We should talk to our senators and our members of Congress to say 'we don't deserve this, America,'\" Duffy said. \"This is the greatest country — by the way, with the greatest president — let's g…","And now it is impossible for us to not assume that the US did this on purpose in order to extort $50B from Congress.","Conspiracy theory: they did the flight outage as a ruse to ask for more money so it could be squandered into their and Trump’s pockets before the Dems takeover. Ps. Why does this not sound improbable?😬","If only we hadn't just wasted 50 billion on a stupid war.","What a wonderful scam We need to fix this problem that we caused please give us money...the exact amount of which will be determined at a later date.","Republicans NEVER get to say they are fiscally responsible.","I'm sure you can find it in that Big Beautiful Bill, right?","Why don't they get the $50 billion from the almost $200 billion allocated to ICE and DHS? Over half of that money remains unspent and it can be used to make Americans safer instead of terrorizing them.",">The Department of Homeland Security The Department of Transportation says it wants $50 billion… Fuck. You. Edit: Since it’s initial posting the article has been edited, changing departments.","How on earth would he know exactly how much he needs for this unexpected issue?","Why does DHS need money to fix FAA? FAA is under DoT.","Didn’t DOGE just cut a shit load out of that agency because they didn’t need it?","Love how Markwayne slipped up and actually said what happened... the new hardware they installed overwhelmed the old hardware they didn't replace yet. Amateur hour over there! Edit: right around the 14 min mark https://m.youtube.com/watch?v=NxIzWieEcwE&t=866s","Grift. Manufactured chaos and deflecting yet again, at the taxpayers expense.","I know everything is super expensive but $50 billion feels like an outrageous amount of money for this. Don’t get me wrong, I want to be as safe as possible and maybe that is what it would cost, but Fdt.","Ah, so one of Trump's pals has a solution to sell.","\"That's a real nice transportation system you got there. It'd be a shame if something were to happen to it...\" It's like living through a bad mafia movie at this point.","Might it be possible that with the DOGE purges, perhaps they lost control of the IT infrastructure due to resources and staffing? This administration could fuck up a 50 piece jigsaw puzzle. I wonder.","I watched it and it was such an obvious fear mongering money grab. He said like 5 words about what's happening and the rest of it was a political speech about how we just need to write Trump a blank check to save us. He actually said it would cost 30 billion but they should get 50 instead because of... reasons.","Lol. Uh, no. You can’t just sabotage the system and then get more money. Congress should investigate this incident and remove those from office accountable.","It felt like a parody how much every single allusion to Trump included talking about how amazing he allegedly is. Real Billie Eilish Boomerang Idol energy.","• Obama (2009–2017): $7.4B for NextGen GPS upgrades + $200M in 2009 stimulus funds for ATC facilities/towers (alongside the $63.6B 2012 FAA Reauthorization). • Trump 1.0 (2017–2021): $0 in new dedicated modernization surges (maintained routine ~$10B/year baseline FAA budgets while proposing a failed privatization plan…","There is no chance they’re telling the truth about what happened","\"We did the Fiasco\" So is this the strategy the next two years? Intentionally sabotage, then demand money from Democrats to fix their problem. When Democrats say no, blame them?","I call Foul. This is moving too fast, asking for billions from Congress, within hours of this fiasco, does not point to actual concerns about infrastructure. This admin doesn’t care, they Do care if AI looks bad.Im starting to smell that the SMART system overlaying the software, you know, rolled out 3 days ago, and in…","You can't tell us what failed, but $50B will fix it? Riiiight.","They gave them 12 billion for infrastructure upgrades this year. Money isn't the issue, its the incompetence that is the problem. Almost like if you put people in charge that are not qualified to do their job, then bad things happen.","At this point are we sure they didn't create the crisis. I guarantee Trump and or family have some kind of investment in the company to be hired to do the update."],"upvotes":[9811,521,8955,2047,894,3047,559,486,298,87,73,70,127,58,156,48,45,44,84,41,108,34,31,30,29,27,45,21,20,20,20,19,631,82],"auth":[91.0,91.0,89.0,82.0,84.0,100.0,86.0,95.0,84.0,100.0,95.0,95.0,91.0,91.0,98.0,95.0,87.0,null,91.0,null,100.0,null,null,null,null,null,null,null,null,null,null,null,100.0,95.0],"band":["ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok",null,"ok",null,"ok",null,null,null,null,null,null,null,null,null,null,null,"ok","ok"]},"topics":[{"id":0,"label":"Government efficiency","size":20,"narratives":[1],"keywords":[["billion",0.066489],["money",0.055156],["democrats",0.038314],["problem",0.036069],["need",0.036069],["fix",0.034332],["congress",0.031722],["trump",0.029784],["happen",0.027657],["possible",0.027657],["fix problem",0.027657],["sabotage",0.027657],["cost",0.027657],["real",0.025542],["plan",0.025542],["bad",0.025542],["doge",0.025542],["republicans",0.025542],["administration",0.025542],["didn",0.024046],["infrastructure",0.022888],["big",0.015641],["big beautiful",0.015641],["american flags",0.015641],["assume",0.015641],["upgrades year",0.015641],["war wonderful",0.015641],["wasted",0.015641],["wasted billion",0.015641],["watched obvious",0.015641]],"subreddits":[["politics",20]]},{"id":1,"label":"Funding motives","size":9,"narratives":[0],"keywords":[["faa",0.051038],["billion",0.033232],["money",0.026255],["congress",0.02416],["trump",0.022684],["basically",0.021885],["palantir",0.021885],["thiel",0.021885],["department",0.021885],["duffy",0.021885],["infrastructure",0.019611],["started",0.015798],["venture",0.015798],["venture capital",0.015798],["ais",0.015798],["alongside",0.015798],["replacement",0.015798],["reauthorization trump",0.015798],["approved",0.015798],["atc",0.015798],["security",0.015798],["reauthorization",0.015798],["says",0.015798],["says wants",0.015798],["owned",0.015798],["thiel started",0.015798],["towers",0.015798],["throttling",0.015798],["smart",0.015798],["space",0.015798]],"subreddits":[["politics",9]]}],"narratives":[{"id":0,"label":"Suspicious funding motives","topic":1,"size":9,"center":[2.266,-4.625],"upvotes":14478,"by_band":{"ok":14444,"warn":0,"bad":0,"na":43},"keywords":[["faa",0.051038],["billion",0.033232],["money",0.026255],["congress",0.02416],["trump",0.022684],["basically",0.021885],["palantir",0.021885],["thiel",0.021885],["department",0.021885],["duffy",0.021885],["infrastructure",0.019611],["started",0.015798],["venture",0.015798],["venture capital",0.015798],["ais",0.015798],["alongside",0.015798],["replacement",0.015798],["reauthorization trump",0.015798],["approved",0.015798],["atc",0.015798],["security",0.015798],["reauthorization",0.015798],["says",0.015798],["says wants",0.015798],["owned",0.015798],["thiel started",0.015798],["towers",0.015798],["throttling",0.015798],["smart",0.015798],["space",0.015798]],"examples":[{"author":"SpecialistOk7296","text":"Conspiracy theory: they did the flight outage as a ruse to ask for more money so it could be squandered into their and Trump’s pockets before the Dems takeover. Ps. Why does this not sound improbable?😬"},{"author":"Teepeaparty","text":"I call Foul. This is moving too fast, asking for billions from Congress, within hours of this fiasco, does not point to actual concerns about infrastructure. This admin doesn’t care, they Do care if AI looks bad.Im starting to smell that t…"},{"author":"brithus","text":"Trump's transportation chief demands $50 billion to prevent another huge FAA fiasco"}]},{"id":1,"label":"Government incompetence, not funding","topic":0,"size":20,"center":[3.537,-2.708],"upvotes":13784,"by_band":{"ok":13488,"warn":0,"bad":0,"na":316},"keywords":[["billion",0.066489],["money",0.055156],["democrats",0.038314],["problem",0.036069],["need",0.036069],["fix",0.034332],["congress",0.031722],["trump",0.029784],["happen",0.027657],["possible",0.027657],["fix problem",0.027657],["sabotage",0.027657],["cost",0.027657],["real",0.025542],["plan",0.025542],["bad",0.025542],["doge",0.025542],["republicans",0.025542],["administration",0.025542],["didn",0.024046],["infrastructure",0.022888],["big",0.015641],["big beautiful",0.015641],["american flags",0.015641],["assume",0.015641],["upgrades year",0.015641],["war wonderful",0.015641],["wasted",0.015641],["wasted billion",0.015641],["watched obvious",0.015641]],"examples":[{"author":"JGWisenheimer","text":"You can't tell us what failed, but $50B will fix it? Riiiight."},{"author":"Busy-Difficulty-4757","text":"Grift. Manufactured chaos and deflecting yet again, at the taxpayers expense."},{"author":"mrbeck1","text":"Lol. Uh, no. You can’t just sabotage the system and then get more money. Congress should investigate this incident and remove those from office accountable."}]}]}</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("candor-data").textContent);
+  const P = DATA.points, N = P.x.length;
+  const narrById = new Map(DATA.narratives.map(n => [n.id, n]));
+  const topicById = new Map(DATA.topics.map(t => [t.id, t]));
+  const fmt = new Intl.NumberFormat();
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+
+  const HAS_UP = !!DATA.meta.has_upvotes && Array.isArray(P.upvotes);
+  const HAS_AUTH = !!DATA.meta.has_authenticity && Array.isArray(P.auth);
+  const BAND_LABEL = {ok: "likely authentic", warn: "uncertain", bad: "suspicious", na: "not scored"};
+  const BANDS = ["ok", "warn", "bad", "na"];
+  let sizeByUp = HAS_UP, fadeByAuth = HAS_AUTH;
+  // Size: square root of upvotes, capped at the 98th percentile so one viral comment doesn't dominate.
+  const upCap = HAS_UP ? Math.max(1, [...P.upvotes].map(u => u || 0).sort((a, b) => a - b)[Math.floor(0.98 * (N - 1))] || 1) : 1;
+  const upR = HAS_UP ? P.upvotes.map(u => Math.sqrt(Math.min(u || 0, upCap) / upCap)) : null;
+  // Opacity: authenticity 20 -> 0.08, 90+ -> 1 (linear in between); unscored authors are hollow rings.
+  const authAlpha = a => Math.max(0.08, Math.min(1, 0.08 + 0.92 * (a - 20) / 70));
+  const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+  const bandTotal = by => BANDS.reduce((s, k) => s + (by[k] || 0), 0);
+
+  let selected = DATA.topics.length ? DATA.topics[0].id : null;
+  let hovered = null;
+  let showNoise = false;
+
+  // ---------------------------------------------------------------- header
+  const m = DATA.meta;
+  document.getElementById("subtitle").textContent =
+    `${m.source || "dataset"} · generated ${m.generated} · embeddings: ${m.params.embedder} · HDBSCAN ${m.params.selection}, min cluster ${m.params.min_cluster_size} · topics: ${m.params.topic_method} @ ${m.params.topic_threshold}` +
+    (m.labels ? ` · labels: ${m.labels}` : "");
+  const tiles = [
+    [fmt.format(m.n_items), "posts & comments", "Every post and comment on the map (empty texts are left out)."],
+    [fmt.format(DATA.topics.length), "topics", "What people talk about: groups of related narratives, merged by meaning."],
+    [fmt.format(DATA.narratives.length), "narratives", "What people argue: clusters of comments that make the same point, found with HDBSCAN on their embeddings."],
+    [Math.round(100 * m.n_noise / Math.max(m.n_items, 1)) + "%", "unclustered (noise)", "Comments too short or too unique to belong to any narrative (jokes, one-word replies). Hidden on the map unless you tick Noise."],
+  ];
+  if (HAS_UP) tiles.push([fmt.format(m.engagement.upvotes), "upvotes", "Sum of the upvotes of every item on the map, as shown on Reddit when it was scraped."]);
+  if (HAS_AUTH) {
+    const by = m.engagement.by_band, tot = bandTotal(by);
+    tiles.push([pct(by.ok, tot) + "%", "of engagement from likely-authentic accounts",
+      `Engagement = upvotes + 1 per comment. Likely authentic ${pct(by.ok, tot)}%, uncertain ${pct(by.warn, tot)}%, suspicious ${pct(by.bad, tot)}%, from authors we didn't score ${pct(by.na, tot)}%.`]);
+  }
+  document.getElementById("tiles").append(...tiles.map(([v, k, tipText]) => {
+    const t = el("div", {className: "tile", tabIndex: 0}, el("div", {className: "v", textContent: v}), el("div", {className: "k", textContent: k}));
+    t.dataset.tip = tipText; return t;
+  }));
+  if (HAS_UP) document.getElementById("enc-up").hidden = false;
+  if (HAS_AUTH) document.getElementById("enc-auth").hidden = false;
+  if (HAS_UP || HAS_AUTH) {
+    document.getElementById("enc").classList.add("on");
+    document.getElementById("hint").textContent += HAS_AUTH
+      ? " Big, solid clusters are narratives with a lot of engagement from accounts that look authentic; faint ones lean on low-scoring accounts."
+      : " Dot size shows upvotes.";
+  }
+
+  // ------------------------------------------------------------ topic list
+  const list = document.getElementById("topic-list");
+  const maxSize = Math.max(1, ...DATA.topics.map(t => t.size));
+  function renderTopicList(filter = "") {
+    const q = filter.trim().toLowerCase();
+    list.replaceChildren();
+    const shown = DATA.topics.filter(t => !q || t.label.toLowerCase().includes(q) ||
+      t.keywords.some(([w]) => w.includes(q)));
+    if (!shown.length) { list.append(el("li", {className: "empty", textContent: "No matching topics"})); return; }
+    for (const t of shown) {
+      const subs = t.subreddits.map(([s, c]) => `r/${s} ${Math.round(100 * c / t.size)}%`).join(" · ");
+      const btn = el("button", {type: "button"},
+        el("span", {className: "t-label", textContent: t.label}),
+        el("span", {className: "t-meta", textContent: `${fmt.format(t.size)} items · ${t.narratives.length} narrative${t.narratives.length > 1 ? "s" : ""}`}),
+        el("span", {className: "t-meta", textContent: subs}),
+        el("div", {className: "t-bar", style: `width:${Math.max(2, 100 * t.size / maxSize)}%`}));
+      btn.setAttribute("aria-pressed", String(t.id === selected));
+      btn.addEventListener("click", () => select(t.id));
+      list.append(el("li", {}, btn));
+    }
+  }
+  document.getElementById("topic-search").addEventListener("input", e => renderTopicList(e.target.value));
+
+  // ------------------------------------------------------------------- map
+  const hoverText = new Array(N);
+  for (let i = 0; i < N; i++) {
+    const n = narrById.get(P.narrative[i]);
+    const words = esc(P.text[i]).replace(/(.{1,70})(\s|$)/g, "$1<br>");
+    const who = `${P.kind[i] === "post" ? "post" : "comment"} by u/${esc(P.author[i])}${P.subreddit[i] ? " · r/" + esc(P.subreddit[i]) : ""}`;
+    const head = n ? `<b>${esc(n.label)}</b><br>topic: ${esc(topicById.get(n.topic).label)}` : "<b>Noise</b> (unclustered)";
+    const extra = [];
+    if (HAS_UP) extra.push(`▲ ${P.upvotes[i] == null ? "?" : fmt.format(P.upvotes[i])} upvotes`);
+    if (HAS_AUTH) extra.push(P.auth[i] == null ? "author not scored" : `author authenticity ${Math.round(P.auth[i])}/100 (${BAND_LABEL[P.band[i]]})`);
+    hoverText[i] = `${head}<br><span style="font-size:11px">${who}${extra.length ? "<br>" + extra.join(" · ") : ""}</span><br><br>${words}`;
+  }
+  const idxBy = pred => { const out = []; for (let i = 0; i < N; i++) if (pred(i)) out.push(i); return out; };
+  const pick = (arr, idx) => idx.map(i => arr[i]);
+
+  function traces() {
+    const noise = idxBy(i => P.narrative[i] === -1);
+    const other = idxBy(i => P.narrative[i] !== -1 && P.topic[i] !== selected);
+    const sel = idxBy(i => P.topic[i] === selected && P.narrative[i] !== hovered);
+    const hot = hovered === null ? [] : idxBy(i => P.narrative[i] === hovered);
+    const mk = (idx, name, color, size, opacity) => {
+      // big dots first so small ones stay visible on top
+      if (sizeByUp) idx = [...idx].sort((a, b) => upR[b] - upR[a]);
+      const open = i => fadeByAuth && P.auth[i] == null;
+      return {
+        type: "scattergl", mode: "markers", name, x: pick(P.x, idx), y: pick(P.y, idx),
+        text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
+        marker: {
+          color,
+          size: sizeByUp ? idx.map(i => size * (0.65 + 2.35 * upR[i])) : size,
+          opacity: fadeByAuth ? idx.map(i => open(i) ? Math.min(opacity, 0.7) : opacity * authAlpha(P.auth[i])) : opacity,
+          symbol: fadeByAuth ? idx.map(i => open(i) ? "circle-open" : "circle") : "circle",
+          line: {width: fadeByAuth ? 1.3 : 0, color},
+        },
+      };
+    };
+    return [
+      mk(showNoise ? noise : [], "noise", css("--noise"), 4, 0.7),
+      mk(other, "other", css("--context"), 4.5, 0.75),
+      mk(sel, "selected", css("--series-1"), 7, 0.9),
+      mk(hot, "hovered", css("--series-2"), 8, 1),
+    ];
+  }
+  // View framing uses Tukey fences (IQR-based) so far-off UMAP islands, e.g.
+  // copy-pasted bot boilerplate, don't squash the main cloud. Zooming out
+  // (or the modebar's autoscale) still reaches them.
+  const quantile = (s, q) => s[Math.floor(q * (s.length - 1))];
+  const fenced = (arr, k, padFrac) => {
+    if (!arr.length) return undefined;
+    const s = [...arr].sort((a, b) => a - b);
+    const q1 = quantile(s, 0.25), q3 = quantile(s, 0.75), iqr = (q3 - q1) || 1;
+    const lo = Math.max(s[0], q1 - k * iqr), hi = Math.min(s[s.length - 1], q3 + k * iqr);
+    const pad = padFrac * ((hi - lo) || 1);
+    return [lo - pad, hi + pad];
+  };
+  const fullX = fenced(P.x, 1.5, 0.04), fullY = fenced(P.y, 1.5, 0.04);
+  let zoomToTopic = false;
+  function viewRanges() {
+    if (!zoomToTopic) return [fullX, fullY];
+    const idx = idxBy(i => P.topic[i] === selected);
+    if (!idx.length) return [fullX, fullY];
+    return [fenced(pick(P.x, idx), 1.0, 0.18), fenced(pick(P.y, idx), 1.0, 0.18)];
+  }
+  const MAX_MAP_LABELS = 6;  // more than this piles up; the cards list every narrative
+
+  function layout() {
+    const t = topicById.get(selected);
+    const labelled = (t ? [...t.narratives] : [])
+      .sort((a, b) => narrById.get(b).size - narrById.get(a).size).slice(0, MAX_MAP_LABELS);
+    const annotations = labelled.map(id => {
+      const n = narrById.get(id);
+      return {
+        x: n.center[0], y: n.center[1], text: esc(n.label), showarrow: false,
+        font: {size: 12, color: css("--ink")}, bgcolor: css("--surface"), bordercolor: css("--border"),
+        borderpad: 3, borderwidth: 1, opacity: 0.92,
+      };
+    });
+    return {
+      margin: {l: 8, r: 8, t: 8, b: 8}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      xaxis: {visible: false, range: viewRanges()[0]}, yaxis: {visible: false, range: viewRanges()[1]},
+      showlegend: false, hovermode: "closest", dragmode: "pan", annotations,
+      hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}, align: "left"},
+      // Keep the user's pan/zoom across hovers; reframe on topic or zoom-mode change.
+      uirevision: zoomToTopic ? "topic-" + selected : "all",
+    };
+  }
+  const mapEl = document.getElementById("map");
+  const plotConfig = {responsive: true, scrollZoom: true, displaylogo: false,
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "toImage"]};
+  function drawMap() {
+    if (!window.Plotly) { mapEl.replaceChildren(el("p", {className: "empty", textContent: "Plotly failed to load (offline?). Topic list and word clouds still work."})); return; }
+    Plotly.react(mapEl, traces(), layout(), plotConfig);
+  }
+
+  // ----------------------------------------------------------- word clouds
+  function layoutCloud(canvas, words) {
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    canvas._boxes = [];
+    if (!words.length) return;
+    const hi = words[0][1], lo = words[words.length - 1][1];
+    const maxF = Math.min(42, H / 4.2), minF = 11;
+    const ink = css("--ink"), ink2 = css("--ink-2");
+    const placed = [];
+    words.forEach(([word, weight], rank) => {
+      const f = minF + (maxF - minF) * Math.sqrt((weight - lo) / ((hi - lo) || 1));
+      ctx.font = `${rank < 3 ? 650 : 500} ${f}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+      const w = ctx.measureText(word).width, h = f * 1.05;
+      for (let s = 0; s < 1600; s++) {
+        const a = s * 0.21, r = 1.6 * a;
+        const x = W / 2 + r * Math.cos(a) * 1.7 - w / 2, y = H / 2 + r * Math.sin(a) - h / 2;
+        if (x < 2 || y < 2 || x + w > W - 2 || y + h > H - 2) continue;
+        if (placed.some(b => x < b.x + b.w + 4 && x + w + 4 > b.x && y < b.y + b.h && y + h > b.y)) continue;
+        const box = {x, y, w, h, word, weight};
+        placed.push(box);
+        ctx.fillStyle = rank < 5 ? ink : ink2;
+        ctx.textBaseline = "top";
+        ctx.fillText(word, x, y + f * 0.05);
+        break;
+      }
+    });
+    canvas._boxes = placed;
+  }
+  const tip = document.getElementById("tip");
+  function attachCloudTip(canvas) {
+    canvas.addEventListener("mousemove", e => {
+      const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      const b = (canvas._boxes || []).find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+      if (!b) { tip.hidden = true; return; }
+      tip.textContent = `${b.word} · weight ${b.weight.toFixed(4)}`;
+      tip.style.left = (e.clientX + 12) + "px"; tip.style.top = (e.clientY + 12) + "px";
+      tip.hidden = false;
+    });
+    canvas.addEventListener("mouseleave", () => { tip.hidden = true; });
+  }
+  function cloudCard(title, meta, words, examples, cls) {
+    const canvas = el("canvas", {role: "img", ariaLabel: `Word cloud: ${words.slice(0, 10).map(w => w[0]).join(", ")}`});
+    const card = el("div", {className: "card " + (cls || "")},
+      el("h4", {textContent: title}), el("div", {className: "meta", textContent: meta}), canvas);
+    if (examples && examples.length) {
+      card.append(el("ul", {className: "examples"}, ...examples.map(ex =>
+        el("li", {}, el("b", {textContent: "u/" + ex.author + ": "}), ex.text))));
+    }
+    canvas._words = words;
+    attachCloudTip(canvas);
+    return card;
+  }
+  const cloudsEl = document.getElementById("clouds");
+  function drawClouds() {
+    cloudsEl.replaceChildren();
+    const t = topicById.get(selected);
+    if (!t) { cloudsEl.append(el("p", {className: "empty", textContent: "No topics found."})); return; }
+    cloudsEl.append(cloudCard(`Topic: ${t.label}`, `${fmt.format(t.size)} items across ${t.narratives.length} narrative(s)`, t.keywords, null, "topic-card"));
+    for (const id of [...t.narratives].sort((a, b) => narrById.get(b).size - narrById.get(a).size)) {
+      const n = narrById.get(id);
+      const card = cloudCard(n.label, `Narrative ${n.id} · ${fmt.format(n.size)} items` + (HAS_UP ? ` · ${fmt.format(n.upvotes)} upvotes` : ""), n.keywords, n.examples);
+      if (n.by_band) card.querySelector(".meta").after(...bandsBar(n.by_band));
+      card.addEventListener("mouseenter", () => setHovered(n.id, card));
+      card.addEventListener("mouseleave", () => setHovered(null, null));
+      cloudsEl.append(card);
+    }
+    redrawCanvases();
+  }
+  function bandsBar(by) {
+    const tot = bandTotal(by);
+    const bar = el("div", {className: "bands", tabIndex: 0});
+    bar.append(...BANDS.filter(k => by[k]).map(k => el("span", {style: `width:${100 * by[k] / tot}%;background:var(--${k})`})));
+    const parts = BANDS.filter(k => by[k]).map(k => `${pct(by[k], tot)}% ${BAND_LABEL[k]}`);
+    bar.dataset.tip = "Who this narrative's engagement (upvotes + 1 per comment) comes from, by the author's authenticity: " + parts.join(", ") + ".";
+    return [bar, el("div", {className: "band-txt", textContent: parts.join(" · ")})];
+  }
+  function redrawCanvases() { cloudsEl.querySelectorAll("canvas").forEach(c => layoutCloud(c, c._words)); }
+
+  // ------------------------------------------------------------- behaviour
+  function setHovered(id, card) {
+    hovered = id;
+    cloudsEl.querySelectorAll(".card.hot").forEach(c => c.classList.remove("hot"));
+    if (card) card.classList.add("hot");
+    if (window.Plotly) Plotly.react(mapEl, traces(), layout(), plotConfig);
+  }
+  function select(id) {
+    selected = id; hovered = null;
+    const t = topicById.get(id);
+    document.getElementById("sel-title").textContent = t ? t.label : "—";
+    document.getElementById("sel-sub").textContent = t ? `${fmt.format(t.size)} items · ${t.narratives.length} narrative(s)` : "";
+    renderTopicList(document.getElementById("topic-search").value);
+    drawMap(); drawClouds();
+  }
+  document.getElementById("show-noise").addEventListener("change", e => { showNoise = e.target.checked; drawMap(); });
+  document.getElementById("zoom-topic").addEventListener("change", e => { zoomToTopic = e.target.checked; drawMap(); });
+  document.getElementById("size-up").addEventListener("change", e => { sizeByUp = HAS_UP && e.target.checked; drawMap(); });
+  document.getElementById("fade-auth").addEventListener("change", e => { fadeByAuth = HAS_AUTH && e.target.checked; drawMap(); });
+  // Tooltips for numbers and encodings ([data-tip]); hover, keyboard focus and tap.
+  function showTip(t, x, y) {
+    tip.textContent = t.dataset.tip; tip.hidden = false;
+    const r = tip.getBoundingClientRect();
+    tip.style.left = Math.max(8, Math.min(x + 12, innerWidth - r.width - 8)) + "px";
+    tip.style.top = (y + 16 + r.height > innerHeight ? y - r.height - 10 : y + 16) + "px";
+  }
+  document.addEventListener("mouseover", e => { const t = e.target.closest("[data-tip]"); if (t) showTip(t, e.clientX, e.clientY); });
+  document.addEventListener("mouseout", e => { if (e.target.closest("[data-tip]")) tip.hidden = true; });
+  document.addEventListener("focusin", e => { const t = e.target.closest("[data-tip]"); if (t) { const r = t.getBoundingClientRect(); showTip(t, r.left, r.bottom); } });
+  document.addEventListener("focusout", () => { tip.hidden = true; });
+
+  select(selected);
+  if (window.Plotly) {
+    mapEl.on("plotly_click", ev => {
+      const i = ev.points[0] && ev.points[0].customdata;
+      if (i != null && P.topic[i] !== -1 && P.topic[i] !== selected) select(P.topic[i]);
+    });
+  }
+  // Re-theme on OS or viewer theme change; relayout clouds on resize.
+  const rerender = () => { drawMap(); redrawCanvases(); };
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
+  new MutationObserver(rerender).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(redrawCanvases, 150); });
+})();
+</script>
+</body>
+</html>

@@ -29,13 +29,22 @@ iframe{flex:1;width:100%;border:0;background:#fcfcfb}
 <nav class="candor-nav" aria-label="Candor">
   <a class="brand" href="/"><span class="flag" aria-hidden="true"><i style="background:#3662e3"></i><i style="background:#1f9d55"></i><i style="background:#e03e3e"></i></span>Candor</a>
   <div class="tabs"><a href="/">Analyze</a><a href="demo.html">Demo</a><a href="dashboard.html" aria-current="page">Dashboard</a></div>
+  <button class="tour-btn" type="button" data-tour-start style="margin-left:auto;color:#fff">? Tutorial</button>
 </nav>
 <header class="intro">
   <h1>Narratives across Reddit</h1>
-  <p>4,453 posts and comments from r/AskReddit, r/politics, r/technology and r/EmploymentLaw (collected November 2026), grouped into narratives (what people argue) and topics (what they argue about). Pick a topic to see where it sits on the map, its word clouds and representative comments.</p>
+  <p>4,453 posts and comments from r/AskReddit, r/politics, r/technology and r/EmploymentLaw (collected November 2026), grouped into narratives (what people argue) and topics (what they argue about). Dots are sized by upvotes. Pick a topic to see where it sits on the map, its word clouds and representative comments. Hover over any number for its meaning.</p>
 </header>
 <div class="frame">
   <iframe src="dashboard/narrative-map.html" title="Narrative map of 4,453 Reddit posts and comments" loading="eager"></iframe>
 </div>
+<script src="tour.js"></script>
+<script>
+CandorTour.setup({key: 'candor_tour_dashboard', steps: () => [
+  {title: 'The dashboard', body: `<p>A map of the narratives across 4,453 Reddit posts and comments from four subreddits.</p>`},
+  {sel: '.frame', title: 'Topics, map and word clouds', body: `<ul><li><b>Topics</b> (left): what people talk about, largest first. Click one to highlight it.</li><li><b>Map</b>: every dot is a post or comment, placed by meaning and <b>sized by upvotes</b>. Hover over a dot to read it.</li><li><b>Word clouds</b> (below the map): the words that define the topic and each of its narratives.</li></ul>`},
+  {title: 'Authenticity on the map', body: `<p>On the map of a thread you analyse yourself, dots also <b>fade with their author's authenticity score</b>, so big, solid clusters show narratives with real engagement from authentic-looking accounts.</p><p>This dataset's 3,516 authors haven't been scored, so here size alone shows engagement.</p>`, action: {label: 'Analyze a post →', href: '/'}},
+]});
+</script>
 </body>
 </html>

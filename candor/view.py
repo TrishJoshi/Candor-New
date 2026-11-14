@@ -85,6 +85,22 @@ def narrative_buckets(all_items, result, profiles: dict) -> list[dict]:
     return out
 
 
+OTHERS_LABEL = "Others"
+PILL_TOP_K = 3
+
+
+def distribution(narratives: list[dict], k: int = PILL_TOP_K) -> list[dict]:
+    """The narrative distribution pill: the top-k narratives by engagement share, plus one
+    "Others" bucket for the smaller narratives and the unclustered comments.
+    Mirrored in mockup/template.html (pillParts) for views stored before this existed."""
+    top = sorted((n for n in narratives if n["id"] != NOISE_ID), key=lambda n: -n["weighted_share"])[:k]
+    out = [{"id": n["id"], "label": n["label"], "share": n["weighted_share"]} for n in top]
+    rest = round(sum(n["weighted_share"] for n in narratives) - sum(o["share"] for o in out), 3)
+    if rest > 0.0005:
+        out.append({"id": None, "label": OTHERS_LABEL, "share": rest})
+    return out
+
+
 def build_view(analysis_id: str, post: dict, all_items, result, scores: dict, accounts: dict,
                warnings: list[str], map_url: str) -> dict:
     """``all_items``: every flattened item of the thread (incl. bots/deleted, shown as-is)."""

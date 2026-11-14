@@ -61,6 +61,8 @@ def _load_env() -> None:
 
 _load_env()
 
+import numpy as np  # noqa: E402
+
 from candor import store  # noqa: E402
 from candor.ingest import flatten_reddit_posts  # noqa: E402  (narrative-buckets, via candor.__path__)
 from candor.profiles import pick_authors, scrape_profiles  # noqa: E402
@@ -68,7 +70,7 @@ from candor.schemas import NOISE_ID  # noqa: E402
 from candor.scoring import score_thread  # noqa: E402
 from candor.scrape import scrape_thread  # noqa: E402
 from candor.spatial_engine import SpatialEngine, SpatialEngineConfig  # noqa: E402
-from candor.view import build_view  # noqa: E402
+from candor.view import build_view, distribution  # noqa: E402
 from candor.visualize import write_report  # noqa: E402
 
 
@@ -140,6 +142,7 @@ def analyze(analysis_id: str, url: str, progress: Callable[[float, str], None] =
         result = engine.process(items, embeddings=embeddings)
         prog(0.45, f"{len(result.narratives)} narratives found", "narratives")
         store.write_json(analysis_id, "stage2.json", result.model_dump())
+        np.save(store.run_dir(analysis_id) / "embeddings.npy", embeddings.astype("float32"))  # lets map.html be rebuilt
         accounts = fut.result()
     store.write_json(analysis_id, "accounts.json", accounts)
 
@@ -151,9 +154,7 @@ def analyze(analysis_id: str, url: str, progress: Callable[[float, str], None] =
     # 5. outputs -----------------------------------------------------------------------------
     prog(0.90, "Building the Reddit view and narrative map")
     model = getattr(engine.labeler, "model", None)
-    _locked(write_report)(result, embeddings, store.run_dir(analysis_id) / "map.html", cfg,  # 2D UMAP inside
-                          source=f"r/{post.get('subreddit')} · {(post.get('title') or '')[:90]}",
-                          labels_source=f"LLM ({model})" if model else "c-TF-IDF keywords")
+    write_map(analysis_id, post, result, embeddings, cfg, scores, model)
     warnings = _warnings(post, accounts, model)
     view = build_view(analysis_id, post, all_items, result, scores, accounts, warnings,
                       map_url=f"/api/analyses/{analysis_id}/map")
@@ -165,11 +166,25 @@ def analyze(analysis_id: str, url: str, progress: Callable[[float, str], None] =
         "n_comments": sum(getattr(c, "kind", "") == "comment" for c in all_items),
         "n_narratives": len(result.narratives),
         "top_narrative": top["label"] if top else None,
+        "narratives": distribution(view["narratives"]),  # the history list's distribution pill
         "n_scored": s.get("scored", 0),
         "mean_score": s.get("mean_score"),
         "label_counts": s.get("label_counts", {}),
         "timing_s": {"scrape": round(t_scrape, 1), "total": round(time.time() - t0, 1)},
     }
+
+
+def map_authors(scores: dict) -> dict[str, dict]:
+    """username -> {score, label} for the narrative map's authenticity encoding."""
+    return {p["username"]: {"score": p.get("authenticity_score"), "label": p.get("authenticity_label")}
+            for p in scores.get("profiles", []) if p.get("authenticity_label") != "no_data"}
+
+
+def write_map(analysis_id, post, result, embeddings, cfg, scores, model) -> None:
+    _locked(write_report)(result, embeddings, store.run_dir(analysis_id) / "map.html", cfg,  # 2D UMAP inside
+                          source=f"r/{post.get('subreddit')} · {(post.get('title') or '')[:90]}",
+                          labels_source=f"LLM ({model})" if model else "c-TF-IDF keywords",
+                          authors=map_authors(scores))
 
 
 def _warnings(post: dict, accounts: dict, model: str | None) -> list[str]:

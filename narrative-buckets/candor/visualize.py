@@ -6,6 +6,10 @@
 * **Topic list** — ranked by size, with the subreddit mix of each topic.
 * **Word clouds** — c-TF-IDF keywords (BERTopic's topic representation) for the
   selected topic and each of its narratives, with representative comments.
+* **Engagement and authenticity** (optional) — dots are sized by upvotes when the
+  comments carry ``upvote_count``; when ``authors`` (username -> authenticity score
+  and label) is given, dots fade with their author's score and unscored authors are
+  drawn hollow, so a narrative's visual weight reflects its *authentic* engagement.
 
 The page loads Plotly from cdnjs; everything else (data, word-cloud layout) is
 inlined, so the file can be opened locally or hosted as-is.
@@ -28,6 +32,26 @@ logger = logging.getLogger(__name__)
 
 PLOTLY_URL = "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.3/plotly-gl2d.min.js"
 _MAX_HOVER_CHARS = 320
+# Authenticity bands, matching profile_authenticity_scorer.LABELS (label wins when given).
+_BAND_OF_LABEL = {"likely_authentic": "ok", "uncertain": "warn", "suspicious": "bad"}
+
+
+def _band(info: dict | None) -> str | None:
+    """'ok' / 'warn' / 'bad' for a scored author, None for unscored (or no data)."""
+    if not info or info.get("score") is None:
+        return None
+    if info.get("label") in _BAND_OF_LABEL:
+        return _BAND_OF_LABEL[info["label"]]
+    s = info["score"]
+    return "ok" if s >= 70 else "warn" if s >= 40 else "bad"
+
+
+def _upvotes(c) -> int | None:
+    v = getattr(c, "upvote_count", None)
+    try:
+        return max(int(v), 0) if v is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def project_2d(embeddings: np.ndarray, random_state: int | None = 42) -> np.ndarray:
@@ -54,10 +78,15 @@ def build_report_data(
     config: SpatialEngineConfig,
     source: str = "",
     labels_source: str = "",
+    authors: dict[str, dict] | None = None,
 ) -> dict:
-    """Everything the page needs, as plain JSON-serialisable data."""
+    """Everything the page needs, as plain JSON-serialisable data.
+
+    ``authors``: username -> {"score": 0-100 or None, "label": scorer label}; enables the
+    authenticity encoding. Authors missing from it are treated as unscored.
+    """
     keep = [i for i, c in enumerate(result.comments) if c.narrative_id is not None and c.text.strip()]
-    coords = project_2d(embeddings[keep], config.random_state)
+    coords = project_2d(embeddings[keep], config.random_state).astype(float)  # float32 -> noisy JSON
     comments = [result.comments[i] for i in keep]
     by_id = {c.comment_id: c for c in result.comments}
 
@@ -72,6 +101,43 @@ def build_report_data(
             subs_by_topic.setdefault(c.topic_id, Counter())[getattr(c, "subreddit", None) or "?"] += 1
 
     noise = int((narr == NOISE_ID).sum())
+    upvotes = [_upvotes(c) for c in comments]
+    has_upvotes = any(u is not None for u in upvotes)
+    bands = [_band((authors or {}).get(c.author)) for c in comments] if authors is not None else None
+
+    def engagement(idx) -> dict:
+        """Upvotes of a set of points, split by author authenticity band.
+        Each item counts upvotes + 1, so unvoted comments still register."""
+        out = {"upvotes": sum(upvotes[i] or 0 for i in idx)}
+        if bands is not None:
+            by = {"ok": 0, "warn": 0, "bad": 0, "na": 0}
+            for i in idx:
+                by[bands[i] or "na"] += (upvotes[i] or 0) + 1
+            out["by_band"] = by
+        return out
+
+    idx_of: dict[int, list[int]] = {}
+    for i, n in enumerate(narr.tolist()):
+        idx_of.setdefault(n, []).append(i)
+    points = {
+        "x": coords[:, 0].round(3).tolist(),
+        "y": coords[:, 1].round(3).tolist(),
+        "narrative": narr.tolist(),
+        "topic": [c.topic_id for c in comments],
+        "author": [c.author for c in comments],
+        "subreddit": [getattr(c, "subreddit", None) or "" for c in comments],
+        "kind": [getattr(c, "kind", None) or "comment" for c in comments],
+        "text": [_truncate(c.text, _MAX_HOVER_CHARS) for c in comments],
+    }
+    if has_upvotes:
+        points["upvotes"] = upvotes
+    if bands is not None:
+        points["auth"] = [
+            None if (a := (authors or {}).get(c.author)) is None or a.get("score") is None
+            else round(float(a["score"]), 1)
+            for c in comments
+        ]
+        points["band"] = bands
     return {
         "meta": {
             "source": source,
@@ -79,6 +145,9 @@ def build_report_data(
             "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
             "n_items": len(comments),
             "n_noise": noise,
+            "has_upvotes": has_upvotes,
+            "has_authenticity": bands is not None,
+            "engagement": engagement(range(len(comments))),
             "params": {
                 "embedder": config.embedding_backend,
                 "min_cluster_size": config.hdbscan_min_cluster_size,
@@ -91,16 +160,7 @@ def build_report_data(
                 ),
             },
         },
-        "points": {
-            "x": coords[:, 0].round(3).tolist(),
-            "y": coords[:, 1].round(3).tolist(),
-            "narrative": narr.tolist(),
-            "topic": [c.topic_id for c in comments],
-            "author": [c.author for c in comments],
-            "subreddit": [getattr(c, "subreddit", None) or "" for c in comments],
-            "kind": [getattr(c, "kind", None) or "comment" for c in comments],
-            "text": [_truncate(c.text, _MAX_HOVER_CHARS) for c in comments],
-        },
+        "points": points,
         "topics": [
             {
                 "id": t.topic_id,
@@ -119,6 +179,7 @@ def build_report_data(
                 "topic": n.topic_id,
                 "size": n.size,
                 "center": centers[n.narrative_id],
+                **engagement(idx_of.get(n.narrative_id, [])),
                 "keywords": [[k.word, k.weight] for k in n.keywords],
                 "examples": [
                     {"author": by_id[cid].author, "text": _truncate(by_id[cid].text, 240)}
@@ -137,10 +198,12 @@ def write_report(
     config: SpatialEngineConfig | None = None,
     source: str = "",
     labels_source: str = "",
+    authors: dict[str, dict] | None = None,
 ) -> Path:
-    """``labels_source`` names where labels came from (e.g. the LLM model), shown in the subtitle."""
+    """``labels_source`` names where labels came from (e.g. the LLM model), shown in the subtitle.
+    ``authors``: see build_report_data."""
     data = build_report_data(
-        result, embeddings, config or SpatialEngineConfig(), source, labels_source
+        result, embeddings, config or SpatialEngineConfig(), source, labels_source, authors
     )
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = _TEMPLATE.replace("__PLOTLY_URL__", PLOTLY_URL).replace("__CANDOR_DATA__", payload)
@@ -253,6 +316,20 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
   box-shadow: 0 2px 8px rgba(0,0,0,.12);
 }
 .empty { color: var(--muted); padding: 16px; }
+.tile[data-tip], .bands[data-tip] { cursor: help; }
+.tile .k { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+.legend .enc { display: none; gap: 6px 14px; flex-wrap: wrap; align-items: center; }
+.legend .enc.on { display: flex; }
+.legend .ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--series-1); margin-right: 5px; vertical-align: -1px; }
+.legend .fade { display: inline-flex; gap: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend .fade i { margin: 0; }
+.bands { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-2); margin: 6px 0 2px; }
+.bands span { display: block; height: 100%; }
+.band-txt { color: var(--ink-2); font-size: 12px; }
+:root { --ok: #1a7f37; --warn: #b07d00; --bad: #cf222e; --na: #b9b7af; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; } }
+:root[data-theme="dark"] { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; }
+.tip { max-width: 300px; }
 </style>
 <script src="__PLOTLY_URL__"></script>
 </head>
@@ -282,9 +359,14 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
             <label><input type="checkbox" id="show-noise"> Noise</label>
             <label><input type="checkbox" id="zoom-topic"> Zoom to topic</label>
           </div>
+          <div class="legend enc" id="enc" style="flex-basis:100%;margin-left:0">
+            <label id="enc-up" hidden data-tip="Bigger dot = more upvotes (square-root scale, so a few viral comments don't swamp the map)."><input type="checkbox" id="size-up" checked> Size = upvotes</label>
+            <label id="enc-auth" hidden data-tip="Each dot fades with its author's authenticity score: solid at 90+, about half at 55, faint below 30. Hollow rings are authors we didn't score (only a thread's most engaged commenters are scored)."><input type="checkbox" id="fade-auth" checked>
+              Opacity = author authenticity <span class="fade" aria-hidden="true"><i style="background:var(--series-1);opacity:1"></i><i style="background:var(--series-1);opacity:.55"></i><i style="background:var(--series-1);opacity:.2"></i></span>high → low · <span class="ring" aria-hidden="true"></span>not scored</label>
+          </div>
         </div>
         <div id="map" role="img" aria-label="2D map of all comments, coloured by the selected topic"></div>
-        <p class="hint">Each dot is a post or comment, placed by meaning (UMAP of sentence embeddings). Click a dot to select its topic; scroll to zoom, double-click to reset.</p>
+        <p class="hint" id="hint">Each dot is a post or comment, placed by meaning (UMAP of sentence embeddings). Click a dot to select its topic; scroll to zoom, double-click to reset.</p>
       </section>
       <h3 class="section">Word clouds <span style="text-transform:none;letter-spacing:0;font-weight:400">· c-TF-IDF keywords, larger = more distinctive</span></h3>
       <div class="clouds" id="clouds"></div>
@@ -305,6 +387,19 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
   const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
 
+  const HAS_UP = !!DATA.meta.has_upvotes && Array.isArray(P.upvotes);
+  const HAS_AUTH = !!DATA.meta.has_authenticity && Array.isArray(P.auth);
+  const BAND_LABEL = {ok: "likely authentic", warn: "uncertain", bad: "suspicious", na: "not scored"};
+  const BANDS = ["ok", "warn", "bad", "na"];
+  let sizeByUp = HAS_UP, fadeByAuth = HAS_AUTH;
+  // Size: square root of upvotes, capped at the 98th percentile so one viral comment doesn't dominate.
+  const upCap = HAS_UP ? Math.max(1, [...P.upvotes].map(u => u || 0).sort((a, b) => a - b)[Math.floor(0.98 * (N - 1))] || 1) : 1;
+  const upR = HAS_UP ? P.upvotes.map(u => Math.sqrt(Math.min(u || 0, upCap) / upCap)) : null;
+  // Opacity: authenticity 20 -> 0.08, 90+ -> 1 (linear in between); unscored authors are hollow rings.
+  const authAlpha = a => Math.max(0.08, Math.min(1, 0.08 + 0.92 * (a - 20) / 70));
+  const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+  const bandTotal = by => BANDS.reduce((s, k) => s + (by[k] || 0), 0);
+
   let selected = DATA.topics.length ? DATA.topics[0].id : null;
   let hovered = null;
   let showNoise = false;
@@ -315,13 +410,29 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     `${m.source || "dataset"} · generated ${m.generated} · embeddings: ${m.params.embedder} · HDBSCAN ${m.params.selection}, min cluster ${m.params.min_cluster_size} · topics: ${m.params.topic_method} @ ${m.params.topic_threshold}` +
     (m.labels ? ` · labels: ${m.labels}` : "");
   const tiles = [
-    [fmt.format(m.n_items), "posts & comments"],
-    [fmt.format(DATA.topics.length), "topics"],
-    [fmt.format(DATA.narratives.length), "narratives"],
-    [Math.round(100 * m.n_noise / Math.max(m.n_items, 1)) + "%", "unclustered (noise)"],
+    [fmt.format(m.n_items), "posts & comments", "Every post and comment on the map (empty texts are left out)."],
+    [fmt.format(DATA.topics.length), "topics", "What people talk about: groups of related narratives, merged by meaning."],
+    [fmt.format(DATA.narratives.length), "narratives", "What people argue: clusters of comments that make the same point, found with HDBSCAN on their embeddings."],
+    [Math.round(100 * m.n_noise / Math.max(m.n_items, 1)) + "%", "unclustered (noise)", "Comments too short or too unique to belong to any narrative (jokes, one-word replies). Hidden on the map unless you tick Noise."],
   ];
-  document.getElementById("tiles").append(...tiles.map(([v, k]) =>
-    el("div", {className: "tile"}, el("div", {className: "v", textContent: v}), el("div", {className: "k", textContent: k}))));
+  if (HAS_UP) tiles.push([fmt.format(m.engagement.upvotes), "upvotes", "Sum of the upvotes of every item on the map, as shown on Reddit when it was scraped."]);
+  if (HAS_AUTH) {
+    const by = m.engagement.by_band, tot = bandTotal(by);
+    tiles.push([pct(by.ok, tot) + "%", "of engagement from likely-authentic accounts",
+      `Engagement = upvotes + 1 per comment. Likely authentic ${pct(by.ok, tot)}%, uncertain ${pct(by.warn, tot)}%, suspicious ${pct(by.bad, tot)}%, from authors we didn't score ${pct(by.na, tot)}%.`]);
+  }
+  document.getElementById("tiles").append(...tiles.map(([v, k, tipText]) => {
+    const t = el("div", {className: "tile", tabIndex: 0}, el("div", {className: "v", textContent: v}), el("div", {className: "k", textContent: k}));
+    t.dataset.tip = tipText; return t;
+  }));
+  if (HAS_UP) document.getElementById("enc-up").hidden = false;
+  if (HAS_AUTH) document.getElementById("enc-auth").hidden = false;
+  if (HAS_UP || HAS_AUTH) {
+    document.getElementById("enc").classList.add("on");
+    document.getElementById("hint").textContent += HAS_AUTH
+      ? " Big, solid clusters are narratives with a lot of engagement from accounts that look authentic; faint ones lean on low-scoring accounts."
+      : " Dot size shows upvotes.";
+  }
 
   // ------------------------------------------------------------ topic list
   const list = document.getElementById("topic-list");
@@ -353,7 +464,10 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     const words = esc(P.text[i]).replace(/(.{1,70})(\s|$)/g, "$1<br>");
     const who = `${P.kind[i] === "post" ? "post" : "comment"} by u/${esc(P.author[i])}${P.subreddit[i] ? " · r/" + esc(P.subreddit[i]) : ""}`;
     const head = n ? `<b>${esc(n.label)}</b><br>topic: ${esc(topicById.get(n.topic).label)}` : "<b>Noise</b> (unclustered)";
-    hoverText[i] = `${head}<br><span style="font-size:11px">${who}</span><br><br>${words}`;
+    const extra = [];
+    if (HAS_UP) extra.push(`▲ ${P.upvotes[i] == null ? "?" : fmt.format(P.upvotes[i])} upvotes`);
+    if (HAS_AUTH) extra.push(P.auth[i] == null ? "author not scored" : `author authenticity ${Math.round(P.auth[i])}/100 (${BAND_LABEL[P.band[i]]})`);
+    hoverText[i] = `${head}<br><span style="font-size:11px">${who}${extra.length ? "<br>" + extra.join(" · ") : ""}</span><br><br>${words}`;
   }
   const idxBy = pred => { const out = []; for (let i = 0; i < N; i++) if (pred(i)) out.push(i); return out; };
   const pick = (arr, idx) => idx.map(i => arr[i]);
@@ -363,11 +477,22 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     const other = idxBy(i => P.narrative[i] !== -1 && P.topic[i] !== selected);
     const sel = idxBy(i => P.topic[i] === selected && P.narrative[i] !== hovered);
     const hot = hovered === null ? [] : idxBy(i => P.narrative[i] === hovered);
-    const mk = (idx, name, color, size, opacity) => ({
-      type: "scattergl", mode: "markers", name, x: pick(P.x, idx), y: pick(P.y, idx),
-      text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
-      marker: {color, size, opacity, line: {width: 0}},
-    });
+    const mk = (idx, name, color, size, opacity) => {
+      // big dots first so small ones stay visible on top
+      if (sizeByUp) idx = [...idx].sort((a, b) => upR[b] - upR[a]);
+      const open = i => fadeByAuth && P.auth[i] == null;
+      return {
+        type: "scattergl", mode: "markers", name, x: pick(P.x, idx), y: pick(P.y, idx),
+        text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
+        marker: {
+          color,
+          size: sizeByUp ? idx.map(i => size * (0.65 + 2.35 * upR[i])) : size,
+          opacity: fadeByAuth ? idx.map(i => open(i) ? Math.min(opacity, 0.7) : opacity * authAlpha(P.auth[i])) : opacity,
+          symbol: fadeByAuth ? idx.map(i => open(i) ? "circle-open" : "circle") : "circle",
+          line: {width: fadeByAuth ? 1.3 : 0, color},
+        },
+      };
+    };
     return [
       mk(showNoise ? noise : [], "noise", css("--noise"), 4, 0.7),
       mk(other, "other", css("--context"), 4.5, 0.75),
@@ -491,12 +616,21 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     cloudsEl.append(cloudCard(`Topic: ${t.label}`, `${fmt.format(t.size)} items across ${t.narratives.length} narrative(s)`, t.keywords, null, "topic-card"));
     for (const id of [...t.narratives].sort((a, b) => narrById.get(b).size - narrById.get(a).size)) {
       const n = narrById.get(id);
-      const card = cloudCard(n.label, `Narrative ${n.id} · ${fmt.format(n.size)} items`, n.keywords, n.examples);
+      const card = cloudCard(n.label, `Narrative ${n.id} · ${fmt.format(n.size)} items` + (HAS_UP ? ` · ${fmt.format(n.upvotes)} upvotes` : ""), n.keywords, n.examples);
+      if (n.by_band) card.querySelector(".meta").after(...bandsBar(n.by_band));
       card.addEventListener("mouseenter", () => setHovered(n.id, card));
       card.addEventListener("mouseleave", () => setHovered(null, null));
       cloudsEl.append(card);
     }
     redrawCanvases();
+  }
+  function bandsBar(by) {
+    const tot = bandTotal(by);
+    const bar = el("div", {className: "bands", tabIndex: 0});
+    bar.append(...BANDS.filter(k => by[k]).map(k => el("span", {style: `width:${100 * by[k] / tot}%;background:var(--${k})`})));
+    const parts = BANDS.filter(k => by[k]).map(k => `${pct(by[k], tot)}% ${BAND_LABEL[k]}`);
+    bar.dataset.tip = "Who this narrative's engagement (upvotes + 1 per comment) comes from, by the author's authenticity: " + parts.join(", ") + ".";
+    return [bar, el("div", {className: "band-txt", textContent: parts.join(" · ")})];
   }
   function redrawCanvases() { cloudsEl.querySelectorAll("canvas").forEach(c => layoutCloud(c, c._words)); }
 
@@ -517,6 +651,19 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
   }
   document.getElementById("show-noise").addEventListener("change", e => { showNoise = e.target.checked; drawMap(); });
   document.getElementById("zoom-topic").addEventListener("change", e => { zoomToTopic = e.target.checked; drawMap(); });
+  document.getElementById("size-up").addEventListener("change", e => { sizeByUp = HAS_UP && e.target.checked; drawMap(); });
+  document.getElementById("fade-auth").addEventListener("change", e => { fadeByAuth = HAS_AUTH && e.target.checked; drawMap(); });
+  // Tooltips for numbers and encodings ([data-tip]); hover, keyboard focus and tap.
+  function showTip(t, x, y) {
+    tip.textContent = t.dataset.tip; tip.hidden = false;
+    const r = tip.getBoundingClientRect();
+    tip.style.left = Math.max(8, Math.min(x + 12, innerWidth - r.width - 8)) + "px";
+    tip.style.top = (y + 16 + r.height > innerHeight ? y - r.height - 10 : y + 16) + "px";
+  }
+  document.addEventListener("mouseover", e => { const t = e.target.closest("[data-tip]"); if (t) showTip(t, e.clientX, e.clientY); });
+  document.addEventListener("mouseout", e => { if (e.target.closest("[data-tip]")) tip.hidden = true; });
+  document.addEventListener("focusin", e => { const t = e.target.closest("[data-tip]"); if (t) { const r = t.getBoundingClientRect(); showTip(t, r.left, r.bottom); } });
+  document.addEventListener("focusout", () => { tip.hidden = true; });
 
   select(selected);
   if (window.Plotly) {
