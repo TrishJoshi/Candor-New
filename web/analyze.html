@@ -1,51 +1,7 @@
 <!doctype html>
-<html lang="en">
-<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Candor</title>
-<style>
-  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
-  input { width: 100%; padding: 10px; font-size: 16px; box-sizing: border-box; }
-  button { margin-top: 8px; padding: 10px 16px; font-size: 16px; }
-  pre { background: #f4f4f4; padding: 12px; overflow-x: auto; white-space: pre-wrap; }
-</style>
-</head>
-<body>
-<p><a href="./">&larr; Candor</a></p>
-<h1>Analyze a post</h1>
-<p>Deploy smoke test. API status: <strong id="health">checking…</strong></p>
-<input id="url" placeholder="https://www.reddit.com/r/…/comments/…">
-<button id="go">Analyze</button>
-<div id="out"></div>
-<script>
-const out = document.getElementById('out');
-fetch('/api/health').then(r => r.json()).then(j => health.textContent = j.ok ? 'OK' : 'down')
-  .catch(() => health.textContent = 'unreachable');
-go.onclick = async () => {
-  history.replaceState(null, '', '?url=' + encodeURIComponent(url.value));
-  out.textContent = 'Submitting…';
-  const r = await fetch('/api/analyze', {method: 'POST', headers: {'Content-Type': 'application/json'},
-                                         body: JSON.stringify({url: url.value})});
-  const j = await r.json();
-  if (!r.ok) { out.textContent = j.detail; return; }
-  const poll = async () => {
-    const s = await (await fetch('/api/jobs/' + j.job_id)).json();
-    if (s.status === 'done' && s.report && s.report.report_url) {
-      out.innerHTML = '';
-      const a = Object.assign(document.createElement('a'), {href: s.report.report_url, textContent: 'Open the narrative map →'});
-      const pre = document.createElement('pre');
-      pre.textContent = JSON.stringify(s.report, null, 2);
-      out.append(a, pre);
-      return;
-    }
-    out.textContent = s.status === 'error' ? 'Error: ' + s.error : `${Math.round(s.progress * 100)}%  ${s.message}`;
-    if (s.status === 'queued' || s.status === 'running') setTimeout(poll, 1500);
-  };
-  poll();
-};
-const qUrl = new URLSearchParams(location.search).get('url');
-if (qUrl) { url.value = qUrl; go.click(); }
-</script>
-</body>
-</html>
+<!-- Old link target: the Analyze tab now lives on the landing page. -->
+<script>location.replace('./' + location.search);</script>
+<noscript><meta http-equiv="refresh" content="0; url=./"></noscript>
+<p><a href="./">Continue to Candor</a></p>

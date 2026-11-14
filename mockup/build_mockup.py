@@ -2,6 +2,7 @@
 
 Usage: python3 mockup/build_mockup.py
 Reads data/dataset2/reddit_accounts.json + profile_scores.json, injects them into mockup/template.html.
+Also writes web/view.html (the template without data) for live analyses.
 """
 import json, re, collections
 from pathlib import Path
@@ -104,4 +105,6 @@ tpl = (Path(__file__).parent / "template.html").read_text()
 html = tpl.replace("/*__DATA__*/null", json.dumps(data, ensure_ascii=False).replace("</", "<\\/"))
 (Path(__file__).parent / "reddit_mockup.html").write_text(html)
 (ROOT / "web" / "demo.html").write_text(html)  # served copy, linked from the landing page
+# Same template without data: renders live analyses fetched by ?id= (see candor/view.py)
+(ROOT / "web" / "view.html").write_text(tpl)
 print(f"{len(out_threads)} threads, {sum(len(t['comments']) for t in out_threads)} comments, {len(authors)} authors")

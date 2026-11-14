@@ -131,9 +131,55 @@ header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom
 .closex{position:absolute;top:6px;right:8px;background:none;border:0;font-size:18px;cursor:pointer;color:var(--muted)}
 .foot-note{font-size:11px;color:var(--muted);margin-top:8px}
 .disclaimer{max-width:1000px;margin:0 auto 24px;padding:0 16px;font-size:11px;color:var(--muted);text-align:center}
+
+/* Candor site nav (shared with the other pages) */
+.candor-nav{background:#14182b;color:#fff;display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;padding:8px 16px;font:600 14px/1.2 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+.candor-nav .brand{display:flex;align-items:center;gap:8px;color:#fff;font-weight:800;font-size:16px;margin-right:6px}
+.candor-nav .brand:hover{text-decoration:none}
+.candor-nav .flag{display:flex;gap:2px}.candor-nav .flag i{width:4px;height:13px;border-radius:1px}
+.candor-nav .tabs{display:flex;gap:4px;flex-wrap:wrap}
+.candor-nav .tabs a{color:#c9cee0;padding:6px 10px;border-radius:7px}
+.candor-nav .tabs a:hover{color:#fff;background:rgba(255,255,255,.08);text-decoration:none}
+.candor-nav .tabs a[aria-current="page"]{color:#fff;background:rgba(255,255,255,.14)}
+
+/* live analyses: on phones the thread comes first, the summary sidebar after it */
+@media (max-width:900px){body.live .side{order:1}}
+/* narratives (live analyses) */
+.nchip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:10px;padding:0 7px;font-size:11px;font-weight:600;color:var(--muted);background:transparent;cursor:pointer;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nchip:hover,.nchip.on{border-color:var(--link);color:var(--link)}
+.cmt.dim > .text,.cmt.dim > .meta,.cmt.dim > .foot,.cmt.dim > .warnbox{opacity:.35}
+.narr{list-style:none;margin:0;padding:0}
+.narr li{padding:8px 0;border-top:1px solid var(--border-soft)}
+.narr li:first-child{border-top:0}
+.narr button{all:unset;display:block;width:100%;box-sizing:border-box;cursor:pointer;border-radius:4px}
+.narr button:focus-visible{outline:2px solid var(--link);outline-offset:2px}
+.narr .nl{font-weight:700;font-size:13px}
+.narr .on .nl{color:var(--link)}
+.narr .bar{height:6px;background:var(--card-2);border-radius:3px;overflow:hidden;margin:5px 0 3px}
+.narr .bar span{display:block;height:100%;background:var(--link);border-radius:3px}
+.narr .nm{font-size:12px;color:var(--muted)}
+.kw{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.kw span{font-size:11px;background:var(--card-2);border-radius:8px;padding:1px 7px;color:var(--muted)}
+.notes{margin:0;padding-left:16px;font-size:12px;color:var(--muted)}
+.notes li{margin:3px 0}
+/* progress screen */
+.prog{padding:20px}
+.prog h2{margin:0 0 4px;font-size:18px}
+.prog .url{font-size:12px;color:var(--muted);overflow-wrap:anywhere;margin-bottom:14px}
+.prog .track{height:8px;background:var(--card-2);border-radius:4px;overflow:hidden}
+.prog .track span{display:block;height:100%;background:var(--link);border-radius:4px;transition:width .4s}
+.prog .msg{margin-top:10px;font-size:13px}
+.prog .err{color:var(--bad);font-weight:600}
+.prog .btn{display:inline-block;margin-top:14px;border:0;border-radius:16px;padding:7px 16px;background:var(--link);color:#fff;font-weight:700;cursor:pointer}
+.steps{margin:14px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+.steps li{margin:4px 0}
 </style>
 </head>
 <body>
+<nav class="candor-nav" aria-label="Candor">
+  <a class="brand" href="/"><span class="flag" aria-hidden="true"><i style="background:#3662e3"></i><i style="background:#1f9d55"></i><i style="background:#e03e3e"></i></span>Candor</a>
+  <div class="tabs"><a href="/">Analyze</a><a href="/demo.html">Demo</a><a href="/dashboard.html">Dashboard</a></div>
+</nav>
 <header class="top">
   <div class="logo" onclick="location.hash=''"><div class="snoo">●</div><span>reddit</span></div>
   <div class="search" id="search">🔍 Search Reddit</div>
@@ -144,17 +190,18 @@ header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom
   <main id="main"></main>
   <aside class="side" id="side"></aside>
 </div>
-<p class="disclaimer">Concept mockup for the Authenticity Scorer (Junction 2026). It is not affiliated with Reddit. Posts and comments come from a public scrape; scores come from profile_scores.json.</p>
+<p class="disclaimer" id="disclaimer">Concept mockup for the Authenticity Scorer (Junction 2026). It is not affiliated with Reddit. Posts and comments come from a public scrape; scores come from profile_scores.json.</p>
 
 <div class="pop" id="pop" role="dialog" aria-modal="false"></div>
 
 <script>
-const DATA = /*__DATA__*/null;
-const P = DATA.profiles, T = DATA.threads, W = DATA.meta.weights;
+let DATA = /*__DATA__*/null;   // injected for the demo; fetched by ?id= for live analyses
+let P = {}, T = [], W = {}, N = {};
+const LIVE = () => DATA && DATA.meta.mode === "live";
 const CRIT = {C1:"Profile",C2:"Originality",C3:"Coordination",C4:"Engagement",C5:"Behaviour"};
 const LABEL = {likely_authentic:"Likely authentic",uncertain:"Uncertain",suspicious:"Suspicious",no_data:"No data"};
 const LV = {likely_authentic:"ok",uncertain:"warn",suspicious:"bad",no_data:"na"};
-const state = {shield:true, threshold:0, sort:"new"};
+const state = {shield:true, threshold:0, sort:"new", narrative:null};
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const lv = u => LV[(P[u]||{}).label] || "na";
@@ -238,7 +285,7 @@ function threadAuthors(t){
   const s = new Set(t.comments.map(c=>c.author)); if(t.author) s.add(t.author); return [...s];
 }
 function health(t){
-  const us = threadAuthors(t);
+  const us = threadAuthors(t).filter(u=>P[u]);
   const flagged = us.filter(u=>["warn","bad"].includes(lv(u))).length;
   const dots = us.slice(0,12).map(u=>`<i style="background:${color(lv(u))}" title="u/${esc(u)}"></i>`).join("");
   return `<span class="thread-health" title="Scored participants in this thread">🛡️ <span class="dots">${dots}</span> ${us.length} scored${flagged?` · <span style="color:var(--warn)">${flagged} flagged</span>`:""}</span>`;
@@ -286,10 +333,11 @@ function renderThread(id){
     else { c.orphan = c.parent && c.parent!==t.id; roots.push(c); }
   }
   const below = u => state.threshold>0 && P[u] && P[u].score!=null && P[u].score < state.threshold;
+  const dim = c => state.narrative!==null && c.narrative!==state.narrative;
   const node = c => {
     const hide = below(c.author);
-    return `<div class="cmt ${hide?"collapsed":""}" id="c-${c.id}">
-      <div class="meta">${user(c.author)}<span>· ${ago(c.posted_at)}</span>${hide?`<span>· hidden by your threshold <a href="javascript:void 0" data-expand>show</a></span>`:""}</div>
+    return `<div class="cmt ${hide?"collapsed":""} ${dim(c)?"dim":""}" id="c-${c.id}">
+      <div class="meta">${user(c.author)}<span>· ${ago(c.posted_at)}</span>${narrChip(c.narrative)}${hide?`<span>· hidden by your threshold <a href="javascript:void 0" data-expand>show</a></span>`:""}</div>
       ${state.shield?warnFor(c.author):""}
       ${c.orphan?`<div class="orphan">↳ reply to a comment from an account outside the dataset</div>`:""}
       <div class="text">${md(c.body)}</div>
@@ -297,12 +345,22 @@ function renderThread(id){
       ${c.kids.length?`<div class="children">${c.kids.map(node).join("")}</div>`:""}
     </div>`;
   };
-  document.getElementById("main").innerHTML = `<div class="thread"><a class="backlink" href="#">← Back to feed</a>
+  const back = LIVE() ? `<a class="backlink" href="/">← Your analyses</a>` : `<a class="backlink" href="#">← Back to feed</a>`;
+  const shown = LIVE()
+    ? `Showing ${t.comments.length} comments captured${DATA.meta.reported_comments?` of ${DATA.meta.reported_comments}`:""} · ${Object.keys(P).length} most engaged commenters scored`
+    : `Showing ${t.comments.length} comments from scored accounts`;
+  document.getElementById("main").innerHTML = `<div class="thread">${back}
     ${postCard(t,true)}
     ${t.author && state.shield ? `<div class="card" style="padding:0 12px;margin:-4px 0 10px">${warnFor(t.author)}</div>`:""}
-    <div class="card comments"><div class="meta">Showing ${t.comments.length} comments from scored accounts · <a href="${esc(t.url)}" target="_blank" rel="noopener">original thread ↗</a></div>
+    <div class="card comments"><div class="meta">${shown} · <a href="${esc(t.url)}" target="_blank" rel="noopener">original thread ↗</a></div>
     ${roots.map(node).join("") || `<p style="color:var(--muted)">No comments from scored accounts.</p>`}</div></div>`;
-  scrollTo(0,0);
+  if(!state.keepScroll) scrollTo(0,0);
+  state.keepScroll = false;
+}
+function narrChip(id){
+  if(!LIVE() || id==null || !N[id]) return "";
+  const on = state.narrative===id ? " on" : "";
+  return `<button class="nchip${on}" data-narr="${id}" title="Narrative: ${esc(N[id].label)}">🧭 ${esc(N[id].label)}</button>`;
 }
 
 /* ---------- sidebar ---------- */
@@ -317,9 +375,9 @@ function renderSide(){
     const why = Object.values(p.criteria).flatMap(c=>c.signals).sort((a,b)=>a.points-b.points).slice(0,2).map(x=>x.why).join(" · ");
     return `<li>${user(u)}<div class="why">${esc(why)}</div></li>`;
   }).join("");
-  document.getElementById("side").innerHTML = `
+  document.getElementById("side").innerHTML = (LIVE() ? narrativesCard() : "") + `
     <div class="card"><div class="hd shield">🛡️ Authenticity Shield</div><div class="bd">
-      <p>Every account here is scored 0–100 on five signals of authentic behaviour. Click any badge to see why.</p>
+      <p>${LIVE() ? "The thread's most engaged commenters are" : "Every account here is"} scored 0–100 on five signals of authentic behaviour. Click any badge to see why.</p>
       <div class="dist">${dist}</div><div class="legend">${leg}</div>
       <p style="margin-top:12px;font-size:12px;color:var(--muted)">Mean score ${s.mean_score} across ${s.scored} scored profiles</p>
       <ul class="crit-list">${crit}</ul>
@@ -328,19 +386,54 @@ function renderSide(){
       <label for="thr" style="font-size:13px">Collapse comments from accounts scoring below <b id="thrv">${state.threshold||"off"}</b></label>
       <input class="slider" id="thr" type="range" min="0" max="95" step="5" value="${state.threshold}">
     </div></div>
-    <div class="card"><div class="hd">⚠ Flagged accounts</div><div class="bd"><ul class="flagged">${fl}</ul></div></div>
+    <div class="card"><div class="hd">⚠ Flagged accounts</div><div class="bd">${fl ? `<ul class="flagged">${fl}</ul>` : `<p style="margin:0;font-size:13px;color:var(--muted)">No scored account is flagged as uncertain or suspicious.</p>`}</div></div>
     <div class="card"><div class="bd" style="font-size:12px;color:var(--muted)">
       <b style="color:var(--text)">How to read a badge</b><br>✓/⚠ + overall score, then five bars for C1–C5. A short bar means that criterion lost points; a dot means it couldn't be assessed (e.g. hidden history). A low score is a reason to check sources, not proof of a bot.
-    </div></div>`;
+    </div></div>` + (LIVE() ? notesCard() : "");
   document.getElementById("thr").addEventListener("input", e=>{
     state.threshold = +e.target.value; document.getElementById("thrv").textContent = state.threshold||"off";
     if(location.hash.startsWith("#/t/")) route();
   });
 }
 
+function narrativesCard(){
+  const ns = DATA.narratives || [];
+  const li = ns.map(n=>{
+    const on = state.narrative===n.id ? " on" : "";
+    const sc = n.mean_score==null ? "no scored commenters" : `avg authenticity ${Math.round(n.mean_score)} (${n.n_scored} scored)`;
+    const fl = n.flagged.length ? ` · <span style="color:var(--warn)">${n.flagged.length} flagged</span>` : "";
+    return `<li class="${on}"><button data-narr="${n.id}" aria-pressed="${!!on}">
+      <div class="nl">${esc(n.label)}</div>
+      <div class="bar"><span style="width:${Math.max(2,Math.round(n.weighted_share*100))}%"></span></div>
+      <div class="nm">${Math.round(n.weighted_share*100)}% of engagement · ${n.n_comments} comments · ${sc}${fl}</div></button></li>`;
+  }).join("");
+  const kw = (DATA.meta.topic_keywords||[]).slice(0,10).map(k=>`<span>${esc(k)}</span>`).join("");
+  return `<div class="card"><div class="hd">🧭 Narratives in this thread</div><div class="bd">
+    <p style="font-size:12px;color:var(--muted)">Comments grouped by what they argue, sized by engagement (upvotes and replies). Click one to highlight its comments.</p>
+    <ul class="narr">${li}</ul>
+    ${kw?`<div style="font-size:12px;color:var(--muted);margin-top:10px">Thread topic keywords</div><div class="kw">${kw}</div>`:""}
+    <p style="margin:12px 0 0"><a href="${esc(DATA.meta.map_url)}" target="_blank" rel="noopener">Open the narrative map ↗</a></p>
+  </div></div>`;
+}
+function notesCard(){
+  const w = DATA.meta.warnings || [];
+  return w.length ? `<div class="card"><div class="hd">ℹ️ About this analysis</div><div class="bd"><ul class="notes">${w.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div></div>` : "";
+}
+document.getElementById("side").addEventListener("click", e=>{
+  const n = e.target.closest("[data-narr]"); if(!n || e.target.closest("[data-user]")) return;
+  toggleNarrative(+n.dataset.narr);
+});
+function toggleNarrative(id){
+  state.narrative = state.narrative===id ? null : id;
+  state.keepScroll = true;
+  renderSide(); route();
+}
+
 /* ---------- interactions ---------- */
 document.getElementById("main").addEventListener("click", e=>{
   if(e.target.closest("[data-user]")||e.target.closest("a[href^='http']")) return;
+  const nc = e.target.closest("[data-narr]"); if(nc){ toggleNarrative(+nc.dataset.narr); return; }
+  const retry = e.target.closest("[data-retry]"); if(retry){ retryAnalysis(retry.dataset.retry); return; }
   const s = e.target.closest("[data-sort]"); if(s){ state.sort=s.dataset.sort; renderFeed(); return; }
   const col = e.target.closest("[data-collapse]");
   if(col){ const c = col.closest(".cmt"); const on = c.classList.toggle("collapsed"); col.textContent = on?"Show":"Hide"; return; }
@@ -354,15 +447,71 @@ sb.addEventListener("click", ()=>{
   sb.querySelector("span").textContent = state.shield ? "Authenticity labels on" : "Authenticity labels off";
   document.body.classList.toggle("shield-off", !state.shield); route();
 });
-document.getElementById("search").textContent = "🔍 Search r/" + [...new Set(T.map(t=>t.sub))].slice(0,3).join(", r/");
-
 function route(){
   pop.classList.remove("open");
+  if(!DATA) return;
   const m = location.hash.match(/^#\/t\/(\w+)/);
-  m ? renderThread(m[1]) : renderFeed();
+  if(m) renderThread(m[1]);
+  else if(LIVE() && T.length) renderThread(T[0].id);  // a live analysis is one thread: open it
+  else renderFeed();
 }
 addEventListener("hashchange", route);
-renderSide(); route();
+
+function boot(data){
+  DATA = data; P = DATA.profiles; T = DATA.threads; W = DATA.meta.weights;
+  N = Object.fromEntries((DATA.narratives||[]).map(n=>[n.id,n]));
+  document.getElementById("search").textContent = "🔍 Search r/" + [...new Set(T.map(t=>t.sub))].slice(0,3).join(", r/");
+  if(LIVE()){
+    document.body.classList.add("live");
+    document.title = `${T[0].title} · Candor`;
+    document.getElementById("disclaimer").textContent = "Candor analysis of a public Reddit thread. Not affiliated with Reddit. Scores are prompts to check sources, not proof.";
+  }
+  renderSide(); route();
+}
+
+/* ---------- live analyses: ?id=<analysis> ---------- */
+const AID = new URLSearchParams(location.search).get("id");
+function progressView(a){
+  const pct = Math.round((a.progress||0)*100);
+  const err = a.status==="error";
+  document.getElementById("main").innerHTML = `<div class="card prog">
+    <h2>${err ? "Analysis failed" : a.status==="queued" ? "Queued…" : "Analysing this thread…"}</h2>
+    <div class="url">${esc(a.title || a.canonical_url || "")}</div>
+    ${err ? `<div class="msg err">${esc(a.error||"Unknown error")}</div>${a.url?`<button class="btn" data-retry="${esc(a.url)}">Try again</button>`:""}`
+          : `<div class="track" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>
+             <div class="msg">${pct}% · ${esc(a.message||"")}</div>
+             <ol class="steps"><li>Scrape the thread (context.dev)</li><li>Scrape the most engaged commenters' profiles</li><li>Group comments into narratives (Gemini embeddings + NVIDIA naming)</li><li>Score each account's authenticity</li></ol>
+             <p style="font-size:12px;color:var(--muted);margin:12px 0 0">Usually 1–2 minutes. You can close this page; it stays under <a href="/">Your analyses</a>.</p>`}
+  </div>`;
+  document.getElementById("side").innerHTML = "";
+}
+async function retryAnalysis(url){
+  const r = await fetch("/api/analyze", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({url})});
+  const j = await r.json().catch(()=>({}));
+  if(r.ok) location.search = "?id=" + encodeURIComponent(j.id);
+  else document.querySelector(".prog")?.insertAdjacentHTML("beforeend", `<div class="msg err">${esc(j.detail || "Could not start the analysis")}</div>`);
+}
+async function poll(){
+  try{
+    const r = await fetch(`/api/analyses/${encodeURIComponent(AID)}`);
+    if(r.status===404){ progressView({status:"error", error:"We couldn't find this analysis."}); return; }
+    const a = await r.json();
+    if(a.status==="done"){
+      const v = await fetch(`/api/analyses/${encodeURIComponent(AID)}/view`);
+      if(v.ok){ boot(await v.json()); return; }
+    }
+    progressView(a);
+    if(a.status!=="error") setTimeout(poll, 1500);
+  }catch(_){ setTimeout(poll, 3000); }
+}
+document.querySelectorAll(".candor-nav .tabs a").forEach(a=>{
+  const href = a.getAttribute("href");
+  if(href===location.pathname || (AID && href==="/")) a.setAttribute("aria-current","page");
+});
+if(AID) document.getElementById("disclaimer").textContent = "Candor analysis of a public Reddit thread. Not affiliated with Reddit. Scores are prompts to check sources, not proof.";
+if(DATA) boot(DATA);
+else if(AID) poll();
+else progressView({status:"error", error:"No analysis selected. Start one from the Analyze tab."});
 </script>
 </body>
 </html>

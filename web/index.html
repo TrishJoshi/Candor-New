@@ -70,6 +70,28 @@ footer{padding:16px 0 20px;font-size:13px;color:var(--muted);display:flex;justif
 .ctx img{width:26px;height:26px;border-radius:6px}
 footer a:hover{color:var(--blue)}
 .sr{position:absolute;left:-9999px}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tabs a{color:var(--muted);text-decoration:none;font-weight:600;font-size:15px;padding:7px 12px;border-radius:9px}
+.tabs a:hover{color:var(--text);background:#f3f5f9}
+.tabs a[aria-current="page"]{color:var(--blue);background:var(--blue-soft)}
+nav{flex-wrap:wrap;gap:10px}
+.btn[disabled]{opacity:.6;cursor:progress}
+/* history */
+.history{margin-top:28px}
+.history h2{font-size:18px;margin:0 0 4px}
+.history .sub{color:var(--muted);font-size:14px;margin:0 0 12px}
+.hlist{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.hitem a{display:block;border:1px solid var(--border);border-radius:12px;padding:12px 14px;text-decoration:none;color:var(--text)}
+.hitem a:hover{border-color:var(--blue)}
+.htitle{font-weight:600;overflow-wrap:anywhere}
+.hmeta{font-size:13px;color:var(--muted);margin-top:2px;display:flex;gap:6px 12px;flex-wrap:wrap;align-items:center}
+.chip{font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:#f3f5f9;color:var(--muted)}
+.chip.done{background:var(--green-soft);color:var(--green)}
+.chip.run{background:var(--blue-soft);color:var(--blue)}
+.chip.err{background:#fdecec;color:var(--red)}
+.hbar{height:4px;border-radius:2px;background:var(--blue-soft);margin-top:8px;overflow:hidden}
+.hbar span{display:block;height:100%;background:var(--blue)}
+.empty{color:var(--muted);font-size:14px;border:1px dashed var(--border);border-radius:12px;padding:14px}
 </style>
 </head>
 <body>
@@ -80,6 +102,7 @@ footer a:hover{color:var(--blue)}
     <span class="flag" aria-hidden="true"><i style="background:var(--blue)"></i><i style="background:var(--green)"></i><i style="background:var(--red)"></i></span>
     Candor
   </a>
+  <div class="tabs"><a href="/" aria-current="page">Analyze</a><a href="demo.html">Demo</a><a href="dashboard.html">Dashboard</a></div>
   <span class="status" id="api"><i></i><span>Checking API…</span></span>
 </nav>
 
@@ -99,16 +122,22 @@ footer a:hover{color:var(--blue)}
     <section class="mode live">
       <span class="pill">Live · 1–2 min</span>
       <h2>Analyze a Reddit post</h2>
-      <p>Paste any public Reddit thread and we'll run the full analysis.</p>
+      <p>Paste any public Reddit thread. We map its narratives and score the most engaged commenters.</p>
       <div class="grow"></div>
       <form id="live" novalidate>
         <label for="url" class="sr">Reddit post link</label>
         <input id="url" type="url" inputmode="url" autocomplete="off" placeholder="https://www.reddit.com/r/…/comments/…">
         <button class="btn blue" type="submit">Analyze</button>
       </form>
-      <div class="hint" id="hint"></div>
+      <div class="hint" id="hint" role="alert"></div>
     </section>
   </div>
+
+  <section class="history" aria-labelledby="hist-h">
+    <h2 id="hist-h">Your analyses</h2>
+    <p class="sub">Saved in this browser, so you can come back to them.</p>
+    <ul class="hlist" id="hist"><li class="empty">Loading…</li></ul>
+  </section>
 </main>
 
 <section class="sponsors" aria-label="Developed with">
@@ -137,12 +166,58 @@ function validReddit(u) {
   } catch { return false; }
 }
 
-form.addEventListener('submit', e => {
+const btn = form.querySelector('button');
+form.addEventListener('submit', async e => {
   e.preventDefault();
   const u = input.value.trim();
   if (!validReddit(u)) { hint.textContent = 'Paste a Reddit post link, like reddit.com/r/<sub>/comments/…'; input.focus(); return; }
-  location.href = 'analyze.html?url=' + encodeURIComponent(u);
+  btn.disabled = true; btn.textContent = 'Starting…';
+  try {
+    const r = await fetch('api/analyze', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url: u})});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || 'Could not start the analysis');
+    location.href = 'view.html?id=' + encodeURIComponent(j.id);
+  } catch (err) {
+    hint.textContent = err.message === 'Failed to fetch' ? 'The live API is offline right now.' : err.message;
+    btn.disabled = false; btn.textContent = 'Analyze';
+  }
 });
+const prefill = new URLSearchParams(location.search).get('url');
+if (prefill) input.value = prefill;
+
+// ---- history (cookie-scoped, see /api/history)
+const hist = document.getElementById('hist');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function ago(t) {
+  const s = Date.now() / 1000 - t;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  return Math.round(s / 86400) + ' d ago';
+}
+function item(a) {
+  const s = a.summary || {};
+  const flagged = (s.label_counts?.uncertain || 0) + (s.label_counts?.suspicious || 0);
+  let status;
+  if (a.status === 'done') status = `<span class="chip done">Done</span><span>${s.n_comments ?? '?'} comments · ${s.n_narratives ?? '?'} narratives · avg authenticity ${s.mean_score == null ? 'n/a' : Math.round(s.mean_score)}${flagged ? ` · ${flagged} flagged` : ''}</span>`;
+  else if (a.status === 'error') status = `<span class="chip err">Failed</span><span>${esc(a.error || '')}</span>`;
+  else status = `<span class="chip run">${a.status === 'queued' ? 'Queued' : Math.round((a.progress || 0) * 100) + '%'}</span><span>${esc(a.message || '')}</span>`;
+  const bar = (a.status === 'running' || a.status === 'queued') ? `<div class="hbar"><span style="width:${Math.round((a.progress || 0) * 100)}%"></span></div>` : '';
+  return `<li class="hitem"><a href="view.html?id=${encodeURIComponent(a.id)}">
+    <div class="htitle">${esc(a.title || a.canonical_url)}</div>
+    <div class="hmeta">${a.subreddit ? `<span>r/${esc(a.subreddit)}</span>` : ''}<span>${ago(a.created_at)}</span>${status}</div>${bar}</a></li>`;
+}
+async function loadHistory() {
+  try {
+    const r = await fetch('api/history', {credentials: 'same-origin'});
+    if (!r.ok) throw 0;
+    const {analyses} = await r.json();
+    hist.innerHTML = analyses.length ? analyses.map(item).join('')
+      : '<li class="empty">Nothing yet. Paste a Reddit link above to run your first analysis.</li>';
+    if (analyses.some(a => a.status === 'running' || a.status === 'queued')) setTimeout(loadHistory, 3000);
+  } catch { hist.innerHTML = '<li class="empty">Your past analyses will appear here when the live API is online.</li>'; }
+}
+loadHistory();
 input.addEventListener('input', () => { hint.textContent = ''; });
 
 // The landing page works without the API; only the live mode needs it.
