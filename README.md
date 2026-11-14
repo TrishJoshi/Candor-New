@@ -8,7 +8,7 @@ Candor analyses the comments under a Reddit post. It answers two questions:
 Built for Junction 2026. Live at **https://candor-junction-2026.tech**. The site has three tabs:
 
 - **Analyze** (`web/index.html`): paste any public Reddit link and the full pipeline runs live on it. Your past analyses are listed below the form (remembered with a cookie).
-- **Demo** (`web/demo.html`): a simulated Reddit feed of threads analysed in advance (static data).
+- **Demo** (`web/demo.html`): a feed of real threads analysed in advance by the live pipeline, each opening in the same result view as a live analysis (`view.html?id=ex-<id>`). Bundled with `python -m candor.examples <analysis_id> ...` into `web/examples/`.
 - **Dashboard** (`web/dashboard.html`): the narrative map of 4,453 posts and comments from four subreddits.
 
 A finished analysis opens in the same Reddit mockup as the demo (`web/view.html?id=<analysis>`): every comment shows its author's authenticity badge and its narrative, and the sidebar ranks the thread's narratives by engagement and by how credible their commenters are.

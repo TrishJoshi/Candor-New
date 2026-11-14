@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Narrative Map</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --border: rgba(11,11,11,0.10);
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --context: #b9b7af;
+  --noise: #d6d4cc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #d95926; --context: #55544f; --noise: #343431;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a;
+  --border: rgba(255,255,255,0.10);
+  --series-1: #3987e5; --series-2: #d95926; --context: #55544f; --noise: #343431;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: max(20px, env(safe-area-inset-top)) 20px 40px;
+}
+.wrap { max-width: 1400px; margin: 0 auto; }
+header h1 { font-size: 22px; margin: 0 0 2px; font-weight: 650; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--ink-2); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 18px 0; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile .v { font-size: 24px; font-weight: 650; }
+.tile .k { color: var(--ink-2); font-size: 12px; }
+.layout { display: grid; grid-template-columns: minmax(260px, 320px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+aside.panel { position: sticky; top: max(12px, env(safe-area-inset-top)); max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
+@media (max-width: 860px) { aside.panel { position: static; max-height: 360px; } }
+.panel-head { padding: 12px 14px 8px; border-bottom: 1px solid var(--border); }
+.panel-head h2 { font-size: 13px; margin: 0 0 8px; color: var(--ink-2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+input[type=search] {
+  width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--ink); font: inherit;
+}
+#topic-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+#topic-list li button {
+  all: unset; display: block; width: 100%; box-sizing: border-box; cursor: pointer;
+  padding: 8px 10px; border-radius: 7px;
+}
+#topic-list li button:hover { background: var(--surface-2); }
+#topic-list li button[aria-pressed="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--series-1); }
+#topic-list li button:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+.t-label { font-weight: 600; display: block; }
+.t-meta { color: var(--ink-2); font-size: 12px; display: block; }
+.t-bar { height: 3px; border-radius: 2px; background: var(--series-1); margin-top: 6px; opacity: .85; }
+.map-head { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.map-head h2 { margin: 0; font-size: 17px; }
+.map-head .sub { color: var(--ink-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--ink-2); font-size: 12px; margin-left: auto; align-items: center; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.legend label { cursor: pointer; }
+#map { width: 100%; height: min(68vh, 640px); min-height: 360px; }
+.hint { color: var(--muted); font-size: 12px; padding: 0 14px 10px; margin: 0; }
+h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; margin: 22px 2px 10px; font-weight: 600; }
+.clouds { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; position: relative; }
+.card.topic-card { grid-column: 1 / -1; }
+.card h4 { margin: 0; font-size: 15px; }
+.card .meta { color: var(--ink-2); font-size: 12px; margin-bottom: 6px; }
+.card canvas { width: 100%; height: 190px; display: block; }
+.card.topic-card canvas { height: 220px; }
+.card.hot { box-shadow: 0 0 0 2px var(--series-2); }
+.examples { margin: 8px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--border); }
+.examples li { padding: 7px 0 0; color: var(--ink-2); font-size: 12.5px; }
+.examples b { color: var(--ink); font-weight: 600; }
+.tip {
+  position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.empty { color: var(--muted); padding: 16px; }
+.tile[data-tip], .bands[data-tip] { cursor: help; }
+.tile .k { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+.legend .enc { display: none; gap: 6px 14px; flex-wrap: wrap; align-items: center; }
+.legend .enc.on { display: flex; }
+.legend .ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--series-1); margin-right: 5px; vertical-align: -1px; }
+.legend .fade { display: inline-flex; gap: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend .fade i { margin: 0; }
+.bands { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-2); margin: 6px 0 2px; }
+.bands span { display: block; height: 100%; }
+.band-txt { color: var(--ink-2); font-size: 12px; }
+:root { --ok: #1a7f37; --warn: #b07d00; --bad: #cf222e; --na: #b9b7af; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; } }
+:root[data-theme="dark"] { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; }
+.tip { max-width: 300px; }
+select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink); font: inherit; margin-bottom: 8px; }
+.t-auth { display: inline-block; font-size: 11px; font-weight: 650; padding: 0 6px; border-radius: 8px; margin-left: 6px; vertical-align: 1px; }
+.a-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.a-warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.a-bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.a-na { color: var(--muted); background: var(--surface-2); }
+.authline { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; color: var(--ink-2); margin: 4px 0 6px; }
+.authline .t-auth { margin-left: 0; font-size: 12px; padding: 1px 8px; }
+.summary { font-size: 14.5px; line-height: 1.55; margin: 8px 0; color: var(--ink); }
+.ai-tag { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--series-1); margin-right: 6px; }
+.card.topic-card { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 4px 20px; align-items: start; }
+.card.topic-card .summary { font-size: 17px; line-height: 1.55; margin: 6px 0 4px; }
+.card.topic-card canvas { height: 170px; }
+.card.topic-card .side-cloud .meta { margin: 0; }
+@media (max-width: 760px) { .card.topic-card { grid-template-columns: 1fr; } }
+.card.has-summary:not(.topic-card) canvas { height: 110px; opacity: .85; }
+.card .sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+#timeline { width: 100%; height: 280px; }
+.tl-note { color: var(--muted); font-size: 12px; padding: 0 14px 10px; margin: 0; }
+.panel.tl { margin-top: 16px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.3/plotly-gl2d.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Narrative Map</h1>
+    <p id="subtitle"></p>
+  </header>
+  <section class="tiles" id="tiles"></section>
+  <div class="layout">
+    <aside class="panel" aria-label="Topics">
+      <div class="panel-head">
+        <h2>Topics</h2>
+        <select id="sub-filter" aria-label="Filter by subreddit" hidden></select>
+        <input type="search" id="topic-search" placeholder="Filter topics or keywords…" aria-label="Filter topics">
+      </div>
+      <ol id="topic-list"></ol>
+    </aside>
+    <main>
+      <section class="panel">
+        <div class="map-head">
+          <h2 id="sel-title"></h2><span class="sub" id="sel-sub"></span>
+          <div class="legend">
+            <span><i style="background:var(--series-1)"></i>Selected topic</span>
+            <span><i style="background:var(--series-2)"></i>Hovered narrative</span>
+            <span><i style="background:var(--context)"></i>Other topics</span>
+            <label data-tip="Noise = comments that don't belong to any narrative: too short, off-topic or one of a kind (jokes, 'this', one-word replies). The clustering leaves them unassigned rather than forcing them into a group. Tick to show them as grey dots."><input type="checkbox" id="show-noise"> Noise</label>
+            <label><input type="checkbox" id="zoom-topic"> Zoom to topic</label>
+          </div>
+          <div class="legend enc" id="enc" style="flex-basis:100%;margin-left:0">
+            <label id="enc-up" hidden data-tip="Bigger dot = more upvotes (square-root scale, so a few viral comments don't swamp the map)."><input type="checkbox" id="size-up" checked> Size = upvotes</label>
+            <label id="enc-auth" hidden data-tip="Each dot fades with its author's authenticity score: solid at 90+, about half at 55, faint below 30. Hollow rings are authors we didn't score (only a thread's most engaged commenters are scored)."><input type="checkbox" id="fade-auth" checked>
+              Opacity = author authenticity <span class="fade" aria-hidden="true"><i style="background:var(--series-1);opacity:1"></i><i style="background:var(--series-1);opacity:.55"></i><i style="background:var(--series-1);opacity:.2"></i></span>high → low · <span class="ring" aria-hidden="true"></span>not scored</label>
+            <!-- INAUTH hook (highlight inauthentic) -->
+            <label id="enc-inauth" hidden data-tip="Red dots = comments by accounts scored suspicious, amber = uncertain, drawn on top. A red halo marks each narrative where a large share of the scored engagement comes from such accounts: the stronger the halo, the larger that share."><input type="checkbox" id="hl-inauth" checked>
+              Highlight inauthentic <span class="fade" aria-hidden="true"><i style="background:var(--bad)"></i><i style="background:var(--warn)"></i></span></label>
+          </div>
+        </div>
+        <div id="map" role="img" aria-label="2D map of all comments, coloured by the selected topic"></div>
+        <p class="hint" id="hint">Each dot is a post or comment, placed by meaning (UMAP of sentence embeddings). Click a dot to select its topic; scroll to zoom, double-click to reset.</p>
+      </section>
+      <section class="panel tl">
+        <div class="map-head"><h2>Activity over time</h2><span class="sub" id="tl-sub"></span></div>
+        <div id="timeline" role="img" aria-label="Comments over time, overall and per narrative of the selected topic"></div>
+        <p class="tl-note" id="tl-note"></p>
+      </section>
+      <h3 class="section">Summaries <span style="text-transform:none;letter-spacing:0;font-weight:400">· written by an AI model from the comments; word clouds show each group's most distinctive words</span></h3>
+      <div class="clouds" id="clouds"></div>
+    </main>
+  </div>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script type="application/json" id="candor-data">{"meta":{"source":"r/trump · You’re not alone","labels":"LLM (nemotron-3.5-super-vl)","generated":"2026-11-14 21:33 UTC","n_items":27,"n_noise":8,"has_upvotes":true,"has_authenticity":true,"engagement":{"upvotes":1655,"auth_score":87.2,"inauth_share":0.347,"n_scored":21,"coverage":0.778,"by_band":{"ok":979,"warn":0,"bad":641,"na":62}},"params":{"embedder":"gemini","min_cluster_size":3,"selection":"eom","topic_method":"agglomerative","topic_threshold":0.06}},"points":{"x":[6.541,7.245,5.177,4.647,3.872,4.763,3.622,3.949,5.164,5.671,5.688,6.819,4.286,4.533,5.318,3.369,6.175,4.847,5.93,6.141,6.58,3.22,7.14,4.586,6.645,3.834,5.128],"y":[8.32,9.32,9.682,8.368,9.171,9.233,8.222,8.454,8.853,8.934,8.283,9.088,8.923,7.454,7.888,8.87,9.603,7.92,7.83,9.136,7.725,8.4,8.818,9.913,9.835,7.488,7.263],"narrative":[1,1,0,0,0,0,0,0,-1,-1,1,1,0,-1,1,-1,1,-1,1,-1,-1,0,1,0,1,-1,0],"topic":[0,0,0,0,0,0,0,0,-1,-1,0,0,0,-1,0,-1,0,-1,0,-1,-1,0,0,0,0,-1,0],"author":["bobbyb8484","tossedsalad8","HoneyPot-Gold","OneForgottenMeme","PurpleOwl85","MidoriGurin1971","cmb9221","SloppySutter","SFPmodsAreFascists","Vincedematta","camarang","MVPROMO","beepbabboop","Impossibly_Mexican","billyrubin1","RVFullTime","src88","matchstick123","golden_retriever04","wickedpsiren","bobbyb8484","JRHZ28","RebeccaC78","bellexxamie","AltTraveler0","Thatsockmonkey","Fonze1973"],"subreddit":["trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump","trump"],"kind":["comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment"],"text":["Love our President!!!","Well said","Just lost a close friend because I told him that I’m voting for Trump today. I really needed to hear this. Thank you!","At a young kid, and one who supports our president, it’s hard to defend my beliefs because if I do, I’m a racist and a homophobic, it’s very depressing because I’m none of those things. I’m glad you wrote this post OP, it lifted my spirits.","Much appreciated✅ I was really annoyed yesterday when I saw at least 5 different article/memes about Trump on the escalator at West Point. Also the fact that anyone notices how he drinks water proves how ridiculously strange and powerful social media has become. Let the man do his job and be grateful he hasn't given u…","Thank you, the left is trying to censor us to make us feel alone in our choices. They will fail. Trump 2020!","Sometimes I wonder if I’m the insane one, not being brainwashed by all the biased, reckless media... but I’m not succumbing to the fake news. I do think the silent masses will speak and vote. Edit to add: Trump trolls, feel free to stay in the 99.9% other areas of reddit to satisfy your leftist confirmation bias. It’s…","What I have found is that all my friends that are on the left have full-out convinced themselves that the reason they don’t have what other people have is because “the system is rigged against them”. It blows my mind why people can’t look at an orphan like Steve Jobs or a billionaire like Bill Gates (who came from not…","I support Bernie, but the Cultural Revolution nonsense has gone too far. TRUMP2020","The Reddit ban is spreading and other communities are using it to ban conservatives. I just got banned from PelotonCycle because I used to post in The_Donald.","WE TRUMPED 'EM IN '16, AND WE'LL TRUMP 'EM IN '20!!","We all have to stick together!","Remember that the truth is stronger than the lie That pride of ones country is a good and a very common thing in non western countries That it's better to be alone than to be in bad company better to be single but yourself than in a relationship and living a lie I envy the USA and its president for he may not be perfe…","You are the party of destroying personal freedoms, the party that endangers the union and opens our nation to manipulation by foreign governments. You are the reason America is no longer great, your support of this mad man has led us all to ruin, and you will be the first to suffer because of it. As his policies endan…","I'm tired of the American left tearing down our memorials and spitting on our heritage.","That sure brought the TDS sufferers out of the woodwork. Gotta be rough, so many people letting Trump live rent free in their heads when some of them won't be old enough to vote for a while yet!","They are trying for mail in ballots because it's the only option they have.","The silent majority is bigger than anyone expects, hell I'm sure it's bigger than WE expect, we will be heard! It's about time we stand tall for what we know is right, we've taken shit for so long. It's time to stand. Trump2020","YES!!! Trump 2020!!","Every time they lock us out, we choose places that respect free speech. There is a world movement right now against authoritarianism. Take notice reddit.","We love President Trump!!!","I am so happy to have come across this sub. I have spent too much time in the politics sub, speaking my mind in favor of Trump as they do bashing him. They then downvote me into negative \"karma\" oblivion. The nonsense so many seem to believe is mind boggling and is hard to wrap my mind around. I am curious about a cou…","Whatever you choose, I commend you on thinking for yourself. There’s way too many people that don’t do that 👏🏼","my fiance was a lib a few years ago too. it drove me insane because he’s such a smart guy, i couldn’t understand how he couldn’t see things the way i did. luckily, at some point he started listening to ben shapiro and gavin mccines and finally realized his beliefs were more aligned with the right. it’s shocking how mu…","The two party system is a hostage situation.","You support an Impeached traitor who most recently has been proven to do NOTHING to a country (Russia) that was paying bounties to people who kill our troops? You support an Impeached fool who ordered CIA intel to be constantly passed to the Russians without anything in return ?","If all BLM are rioters I guess all Trump supporters are racist. See how stupid that sounds! There are good people on both sides. Don't fall for one side and their bullshit! People that protest but do not riot are BLM. People that are actually conservative and vote Republican are not all racist. Everything is not all b…"],"t":[1592446352,1592278073,1592708250,1592313536,1592311804,1592845132,1592811168,1592914580,1592544779,1593633909,1593565428,1592983029,1593445748,1592458688,1593059717,1592864480,1592780369,1595047059,1593376626,1593501869,1593380705,1598737222,1592751342,1594592783,1592838058,1594287537,1593731161],"upvotes":[50,340,350,116,163,120,44,42,65,26,24,23,23,3,15,14,13,13,12,11,10,10,85,37,26,10,10],"auth":[100.0,93.0,74.0,100.0,91.0,74.0,78.8,100.0,74.0,74.0,74.0,74.0,95.0,null,98.0,95.0,100.0,90.0,null,null,100.0,null,91.0,91.0,74.0,null,null],"band":["ok","ok","bad","ok","ok","bad","ok","ok","bad","bad","bad","bad","ok",null,"ok","ok","ok","ok",null,null,"ok",null,"ok","ok","bad",null,null]},"topics":[{"id":0,"label":"Political Identity","size":19,"narratives":[0,1],"keywords":[["trump",0.049671],["mind",0.027866],["left",0.027866],["president",0.026582],["racist",0.022143],["point",0.022143],["insane",0.022143],["believe",0.022143],["lack",0.022143],["government",0.022143],["understand",0.022143],["vote",0.020899],["better",0.015933],["thank",0.015933],["brainwashed",0.015933],["blm",0.015933],["ll",0.015933],["society",0.015933],["stay",0.015933],["sub",0.015933],["media",0.015933],["lib",0.015933],["news",0.015933],["money",0.015933],["feel",0.015933],["lie",0.015933],["hard",0.015933],["hear",0.015933],["enemy",0.015933],["em",0.015933]],"subreddits":[["trump",19]],"summary":"The discussion centers on political identity, with some commenters arguing that Trump supporters experience persecution through censorship and social exclusion, while others express strong support for Trump's 2020 re-election and criticize the American left.","upvotes":1503,"auth_score":87.7,"inauth_share":0.316,"n_scored":16,"coverage":0.842,"by_band":{"ok":939,"warn":0,"bad":548,"na":35}}],"narratives":[{"id":0,"label":"Persecution complex","topic":0,"size":10,"center":[4.436,8.689],"upvotes":915,"auth_score":87.2,"inauth_share":0.295,"n_scored":8,"coverage":0.8,"by_band":{"ok":431,"warn":0,"bad":472,"na":22},"summary":"Commenters argue that Trump supporters face censorship, social exclusion, and unfair labeling from liberals, media, and online platforms, leading them to feel isolated and persecuted for their political beliefs.","keywords":[["trump",0.037442],["mind",0.027614],["racist",0.022051],["believe",0.022051],["point",0.022051],["lack",0.022051],["insane",0.022051],["understand",0.022051],["government",0.022051],["left",0.020711],["vote",0.020711],["president",0.019674],["society",0.015964],["thank",0.015964],["better",0.015964],["brainwashed",0.015964],["lie",0.015964],["media",0.015964],["sub",0.015964],["stay",0.015964],["blm",0.015964],["lib",0.015964],["money",0.015964],["news",0.015964],["couldn",0.015964],["hard",0.015964],["feel",0.015964],["hear",0.015964],["beliefs",0.015964],["enemy",0.015964]],"examples":[{"author":"MidoriGurin1971","text":"Thank you, the left is trying to censor us to make us feel alone in our choices. They will fail. Trump 2020!"},{"author":"OneForgottenMeme","text":"At a young kid, and one who supports our president, it’s hard to defend my beliefs because if I do, I’m a racist and a homophobic, it’s very depressing because I’m none of those things. I’m glad you wrote this post OP, it lifted my spirits."},{"author":"HoneyPot-Gold","text":"Just lost a close friend because I told him that I’m voting for Trump today. I really needed to hear this. Thank you!"}]},{"id":1,"label":"Support Trump 2020","topic":0,"size":9,"center":[6.541,8.818],"upvotes":588,"auth_score":88.4,"inauth_share":0.34,"n_scored":8,"coverage":0.889,"by_band":{"ok":508,"warn":0,"bad":76,"na":13},"summary":"The commenters express strong support for Donald Trump's 2020 re-election, emphasizing unity and confidence in victory. They also criticize the American left for attacking heritage and argue that mail-in ballots are being pursued as a strategic necessity by opponents.","keywords":[["em",0.199392],["trump",0.133617],["ballots option",0.113227],["american left",0.113227],["commend thinking",0.113227],["commend",0.113227],["em ll",0.113227],["ballots",0.113227],["heritage trying",0.113227],["hostage",0.113227],["em stick",0.113227],["heritage",0.113227],["hostage situation",0.113227],["mail ballots",0.113227],["ll trump",0.113227],["choose commend",0.113227],["situation",0.113227],["president trumped",0.113227],["party hostage",0.113227],["mail",0.113227],["memorials",0.113227],["option trump",0.113227],["option",0.113227],["memorials spitting",0.113227],["stick tired",0.113227],["thinking",0.113227],["tearing memorials",0.113227],["tearing",0.113227],["spitting heritage",0.113227],["stick",0.113227]],"examples":[{"author":"golden_retriever04","text":"YES!!! Trump 2020!!"},{"author":"bobbyb8484","text":"Love our President!!!"},{"author":"tossedsalad8","text":"Well said"}]}]}</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("candor-data").textContent);
+  const P = DATA.points, N = P.x.length;
+  const narrById = new Map(DATA.narratives.map(n => [n.id, n]));
+  const topicById = new Map(DATA.topics.map(t => [t.id, t]));
+  const fmt = new Intl.NumberFormat();
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+
+  const HAS_UP = !!DATA.meta.has_upvotes && Array.isArray(P.upvotes);
+  const HAS_AUTH = !!DATA.meta.has_authenticity && Array.isArray(P.auth);
+  const BAND_LABEL = {ok: "likely authentic", warn: "uncertain", bad: "suspicious", na: "not scored"};
+  const BANDS = ["ok", "warn", "bad", "na"];
+  let sizeByUp = HAS_UP, fadeByAuth = HAS_AUTH;
+  // Size: square root of upvotes, capped at the 98th percentile so one viral comment doesn't dominate.
+  const upCap = HAS_UP ? Math.max(1, [...P.upvotes].map(u => u || 0).sort((a, b) => a - b)[Math.floor(0.98 * (N - 1))] || 1) : 1;
+  const upR = HAS_UP ? P.upvotes.map(u => Math.sqrt(Math.min(u || 0, upCap) / upCap)) : null;
+  // Opacity: authenticity 20 -> 0.08, 90+ -> 1 (linear in between); unscored authors are hollow rings.
+  const authAlpha = a => Math.max(0.08, Math.min(1, 0.08 + 0.92 * (a - 20) / 70));
+  const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+  const bandTotal = by => BANDS.reduce((s, k) => s + (by[k] || 0), 0);
+
+  const idxBy = pred => { const out = []; for (let i = 0; i < N; i++) if (pred(i)) out.push(i); return out; };
+  let selected = DATA.topics.length ? DATA.topics[0].id : null;
+  let hovered = null;
+  let showNoise = false;
+
+  // ---------------------------------------------------------------- header
+  const m = DATA.meta;
+  document.getElementById("subtitle").textContent =
+    `${m.source || "dataset"} · generated ${m.generated} · embeddings: ${m.params.embedder} · HDBSCAN ${m.params.selection}, min cluster ${m.params.min_cluster_size} · topics: ${m.params.topic_method} @ ${m.params.topic_threshold}` +
+    (m.labels ? ` · labels: ${m.labels}` : "");
+  // ------------------------------------------------- subreddit filter
+  let sub = "";  // "" = all subreddits
+  const inSub = i => !sub || P.subreddit[i] === sub;
+  const subCounts = new Map();
+  P.subreddit.forEach(s => { if (s) subCounts.set(s, (subCounts.get(s) || 0) + 1); });
+  const subSel = document.getElementById("sub-filter");
+  if (subCounts.size > 1) {
+    subSel.hidden = false;
+    subSel.append(el("option", {value: "", textContent: `All subreddits (${fmt.format(N)})`}),
+      ...[...subCounts].sort((a, b) => b[1] - a[1]).map(([s, c]) => el("option", {value: s, textContent: `r/${s} (${fmt.format(c)})`})));
+  }
+  // Authenticity of a set of points: engagement-weighted (log(1+upvotes)+1) mean of the authors' scores.
+  function authOf(idx) {
+    let w = 0, ws = 0, bad = 0, n = 0;
+    for (const i of idx) {
+      if (!HAS_AUTH || P.auth[i] == null) continue;
+      const x = Math.log1p(HAS_UP ? (P.upvotes[i] || 0) : 0) + 1;
+      w += x; ws += x * P.auth[i]; n++;
+      if (P.band[i] === "warn" || P.band[i] === "bad") bad += x;
+    }
+    return {score: w ? ws / w : null, inauth: w ? bad / w : null, n, coverage: idx.length ? n / idx.length : 0};
+  }
+  const MIN_SCORED = 3;  // fewer scored comments than this: no score shown
+  const authClass = s => s == null ? "a-na" : s >= 70 ? "a-ok" : s >= 40 ? "a-warn" : "a-bad";
+  const AUTH_TIP = "Authenticity score of this group: the average authenticity score (0–100) of the authors of its comments, each comment weighted by its engagement (log of upvotes + 1). 70+ = mostly likely-authentic accounts, 40–69 = mixed, below 40 = mostly suspicious.";
+  function authChip(a, cls = "t-auth") {
+    const c = el("span", {className: `${cls} ${authClass(a.n >= MIN_SCORED ? a.score : null)}`,
+      textContent: a.n >= MIN_SCORED ? `Authenticity ${Math.round(a.score)}` : "Authenticity n/a"});
+    c.dataset.tip = a.n >= MIN_SCORED ? AUTH_TIP + ` Based on ${a.n} scored comments (${pct(a.n, a.n / (a.coverage || 1))}% of the group).`
+      : `Fewer than ${MIN_SCORED} of this group's comments come from scored accounts, so it gets no score.`;
+    return c;
+  }
+
+  function renderTiles() {
+    const idx = idxBy(inSub), clustered = idx.filter(i => P.narrative[i] !== -1);
+    const nT = new Set(clustered.map(i => P.topic[i])).size, nN = new Set(clustered.map(i => P.narrative[i])).size;
+    const tiles = [
+      [fmt.format(idx.length), "posts & comments", "Every post and comment on the map (empty texts are left out)" + (sub ? `, in r/${sub}.` : ".")],
+      [fmt.format(nT), "topics", "What people talk about: groups of related narratives, merged by meaning."],
+      [fmt.format(nN), "narratives", "What people argue: clusters of comments that make the same point, found with HDBSCAN on their embeddings."],
+      [pct(idx.length - clustered.length, idx.length) + "%", "unclustered (noise)", "Comments too short or too unique to belong to any narrative (jokes, one-word replies). Hidden on the map unless you tick Noise."],
+    ];
+    if (HAS_UP) tiles.push([fmt.format(idx.reduce((a, i) => a + (P.upvotes[i] || 0), 0)), "upvotes", "Sum of the upvotes of every item shown, as on Reddit when it was scraped."]);
+    if (HAS_AUTH) {
+      const a = authOf(idx);
+      tiles.push([a.score == null ? "–" : String(Math.round(a.score)), "authenticity score", AUTH_TIP + ` ${pct(a.n, idx.length)}% of these comments come from scored accounts.`]);
+      tiles.push([a.inauth == null ? "–" : pct(a.inauth, 1) + "%", "of scored engagement from uncertain or suspicious accounts",
+        "Engagement (log of upvotes + 1) of comments by accounts labelled uncertain or suspicious, as a share of all comments by scored accounts."]);
+    }
+    document.getElementById("tiles").replaceChildren(...tiles.map(([v, k, tipText]) => {
+      const t = el("div", {className: "tile", tabIndex: 0}, el("div", {className: "v", textContent: v}), el("div", {className: "k", textContent: k}));
+      t.dataset.tip = tipText; return t;
+    }));
+  }
+  if (HAS_UP) document.getElementById("enc-up").hidden = false;
+  if (HAS_AUTH) document.getElementById("enc-auth").hidden = false;
+  if (HAS_UP || HAS_AUTH) {
+    document.getElementById("enc").classList.add("on");
+    document.getElementById("hint").textContent += HAS_AUTH
+      ? " Big, solid clusters are narratives with a lot of engagement from accounts that look authentic; faint ones lean on low-scoring accounts."
+      : " Dot size shows upvotes.";
+  }
+  if (HAS_AUTH) {  // topic and narrative scores, computed once for the whole dataset
+    for (const t of DATA.topics) t._auth = authOf(idxBy(i => P.topic[i] === t.id));
+    for (const n of DATA.narratives) n._auth = authOf(idxBy(i => P.narrative[i] === n.id));
+  }
+
+  // ------------------------------------------------------------ topic list
+  const list = document.getElementById("topic-list");
+  const topicSize = () => {  // items per topic within the subreddit filter
+    const c = new Map();
+    for (let i = 0; i < N; i++) if (P.topic[i] !== -1 && inSub(i)) c.set(P.topic[i], (c.get(P.topic[i]) || 0) + 1);
+    return c;
+  };
+  let sizes = topicSize();
+  function renderTopicList(filter = "") {
+    const q = filter.trim().toLowerCase();
+    list.replaceChildren();
+    const shown = DATA.topics.filter(t => (sizes.get(t.id) || 0) > 0 && (!q || t.label.toLowerCase().includes(q) ||
+      t.keywords.some(([w]) => w.includes(q)) || (t.summary || "").toLowerCase().includes(q)))
+      .sort((a, b) => sizes.get(b.id) - sizes.get(a.id));
+    if (!shown.length) { list.append(el("li", {className: "empty", textContent: "No matching topics"})); return; }
+    const maxSize = Math.max(1, ...shown.map(t => sizes.get(t.id)));
+    for (const t of shown) {
+      const size = sizes.get(t.id);
+      const subs = sub ? `${pct(size, t.size)}% of this topic is in r/${sub}`
+        : t.subreddits.map(([s, c]) => `r/${s} ${Math.round(100 * c / t.size)}%`).join(" · ");
+      const label = el("span", {className: "t-label", textContent: t.label});
+      if (t._auth) label.append(authChip(t._auth));
+      const btn = el("button", {type: "button"}, label,
+        el("span", {className: "t-meta", textContent: `${fmt.format(size)} items · ${t.narratives.length} narrative${t.narratives.length > 1 ? "s" : ""}`}),
+        el("span", {className: "t-meta", textContent: subs}),
+        el("div", {className: "t-bar", style: `width:${Math.max(2, 100 * size / maxSize)}%`}));
+      btn.setAttribute("aria-pressed", String(t.id === selected));
+      btn.addEventListener("click", () => select(t.id));
+      list.append(el("li", {}, btn));
+    }
+  }
+  document.getElementById("topic-search").addEventListener("input", e => renderTopicList(e.target.value));
+  subSel.addEventListener("change", () => {
+    sub = subSel.value; sizes = topicSize(); renderTiles();
+    const first = DATA.topics.filter(t => sizes.get(t.id)).sort((a, b) => sizes.get(b.id) - sizes.get(a.id))[0];
+    select(first ? first.id : null);
+  });
+
+  // ------------------------------------------------------------------- map
+  const hoverText = new Array(N);
+  for (let i = 0; i < N; i++) {
+    const n = narrById.get(P.narrative[i]);
+    const words = esc(P.text[i]).replace(/(.{1,70})(\s|$)/g, "$1<br>");
+    const who = `${P.kind[i] === "post" ? "post" : "comment"} by u/${esc(P.author[i])}${P.subreddit[i] ? " · r/" + esc(P.subreddit[i]) : ""}`;
+    const head = n ? `<b>${esc(n.label)}</b><br>topic: ${esc(topicById.get(n.topic).label)}` : "<b>Noise</b> (unclustered)";
+    const extra = [];
+    if (HAS_UP) extra.push(`▲ ${P.upvotes[i] == null ? "?" : fmt.format(P.upvotes[i])} upvotes`);
+    if (HAS_AUTH) extra.push(P.auth[i] == null ? "author not scored" : `author authenticity ${Math.round(P.auth[i])}/100 (${BAND_LABEL[P.band[i]]})`);
+    hoverText[i] = `${head}<br><span style="font-size:11px">${who}${extra.length ? "<br>" + extra.join(" · ") : ""}</span><br><br>${words}`;
+  }
+  const pick = (arr, idx) => idx.map(i => arr[i]);
+
+  function traces() {
+    const noise = idxBy(i => P.narrative[i] === -1 && inSub(i));
+    const other = idxBy(i => P.narrative[i] !== -1 && P.topic[i] !== selected && inSub(i));
+    const sel = idxBy(i => P.topic[i] === selected && P.narrative[i] !== hovered && inSub(i));
+    const hot = hovered === null ? [] : idxBy(i => P.narrative[i] === hovered && inSub(i));
+    const mk = (idx, name, color, size, opacity) => {
+      // big dots first so small ones stay visible on top
+      if (sizeByUp) idx = [...idx].sort((a, b) => upR[b] - upR[a]);
+      const open = i => fadeByAuth && P.auth[i] == null;
+      return {
+        type: "scattergl", mode: "markers", name, x: pick(P.x, idx), y: pick(P.y, idx),
+        text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
+        marker: {
+          color,
+          size: sizeByUp ? idx.map(i => size * (0.65 + 2.35 * upR[i])) : size,
+          opacity: fadeByAuth ? idx.map(i => open(i) ? Math.min(opacity, 0.7) : opacity * authAlpha(P.auth[i])) : opacity,
+          symbol: fadeByAuth ? idx.map(i => open(i) ? "circle-open" : "circle") : "circle",
+          line: {width: fadeByAuth ? 1.3 : 0, color},
+        },
+      };
+    };
+    return [
+      mk(showNoise ? noise : [], "noise", css("--noise"), 4, 0.7),
+      mk(other, "other", css("--context"), 4.5, 0.75),
+      mk(sel, "selected", css("--series-1"), 7, 0.9),
+      mk(hot, "hovered", css("--series-2"), 8, 1),
+      ...INAUTH.trace(),  // INAUTH hook
+    ];
+  }
+  // View framing uses Tukey fences (IQR-based) so far-off UMAP islands, e.g.
+  // copy-pasted bot boilerplate, don't squash the main cloud. Zooming out
+  // (or the modebar's autoscale) still reaches them.
+  const quantile = (s, q) => s[Math.floor(q * (s.length - 1))];
+  const fenced = (arr, k, padFrac) => {
+    if (!arr.length) return undefined;
+    const s = [...arr].sort((a, b) => a - b);
+    const q1 = quantile(s, 0.25), q3 = quantile(s, 0.75), iqr = (q3 - q1) || 1;
+    const lo = Math.max(s[0], q1 - k * iqr), hi = Math.min(s[s.length - 1], q3 + k * iqr);
+    const pad = padFrac * ((hi - lo) || 1);
+    return [lo - pad, hi + pad];
+  };
+  const fullX = fenced(P.x, 1.5, 0.04), fullY = fenced(P.y, 1.5, 0.04);
+  let zoomToTopic = false;
+  function viewRanges() {
+    if (!zoomToTopic) {
+      if (!sub) return [fullX, fullY];
+      const s = idxBy(inSub);  // frame the chosen subreddit's points
+      return [fenced(pick(P.x, s), 1.5, 0.06), fenced(pick(P.y, s), 1.5, 0.06)];
+    }
+    const idx = idxBy(i => P.topic[i] === selected && inSub(i));
+    if (!idx.length) return [fullX, fullY];
+    return [fenced(pick(P.x, idx), 1.0, 0.18), fenced(pick(P.y, idx), 1.0, 0.18)];
+  }
+  const MAX_MAP_LABELS = 6;  // more than this piles up; the cards list every narrative
+
+  // ==== INAUTHENTIC HIGHLIGHT ===========================================================
+  // Self-contained: to revert, delete this block, the <label id="enc-inauth"> after the
+  // "INAUTH hook" HTML comment, and the two JS lines marked "INAUTH hook".
+  // Comments by uncertain/suspicious accounts are drawn on top in amber/red, and every
+  // narrative gets a red halo whose strength grows with its inauthentic share of engagement,
+  // so narratives that lean on inauthentic accounts stand out anywhere on the map.
+  const INAUTH = (() => {
+    const available = HAS_AUTH;
+    let on = available;
+    const MIN_SHARE = 0.05, LABEL_SHARE = 0.15, MAX_HALOS_LABELLED = 4;
+    const box = document.getElementById("enc-inauth");
+    box.hidden = false; document.getElementById("enc").classList.add("on");
+    if (!available) {  // no author scores in this map (yet): show the control, explain why it's off
+      const cb = document.getElementById("hl-inauth"); cb.checked = false; cb.disabled = true;
+      box.style.opacity = ".55";
+      box.dataset.tip = "Not available yet: none of this map's authors have authenticity scores. It switches on once they're scored.";
+    }
+    if (available) {
+      // fading low-scoring dots would hide exactly what this layer shows
+      fadeByAuth = false; document.getElementById("fade-auth").checked = false;
+      document.getElementById("hl-inauth").addEventListener("change", e => { on = e.target.checked; drawMap(); });
+    }
+    const halos = available ? DATA.narratives.map(n => {
+      const idx = idxBy(i => P.narrative[i] === n.id);
+      const a = authOf(idx);
+      if (a.n < MIN_SCORED || !(a.inauth >= MIN_SHARE)) return null;
+      const d = idx.map(i => Math.hypot(P.x[i] - n.center[0], P.y[i] - n.center[1])).sort((p, q) => p - q);
+      return {n, share: a.inauth, r: Math.max(0.15, 1.2 * d[Math.floor(d.length / 2)])};
+    }).filter(Boolean).sort((p, q) => q.share - p.share) : [];
+    const pts = available ? idxBy(i => P.band[i] === "warn" || P.band[i] === "bad") : [];
+    return {
+      trace() {  // drawn last, on top of the topic layers
+        if (!on) return [];
+        const idx = pts.filter(i => inSub(i) && (showNoise || P.narrative[i] !== -1));
+        return [{
+          type: "scattergl", mode: "markers", name: "inauthentic", x: pick(P.x, idx), y: pick(P.y, idx),
+          text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
+          marker: {color: idx.map(i => P.band[i] === "bad" ? css("--bad") : css("--warn")),
+            size: idx.map(i => (sizeByUp ? 7 * (0.65 + 2.35 * upR[i]) : 7) + 2), opacity: 0.95,
+            line: {width: 1, color: css("--surface")}},
+        }];
+      },
+      shapes() {
+        if (!on) return [];
+        return halos.map(h => ({
+          type: "circle", layer: "below", xref: "x", yref: "y",
+          x0: h.n.center[0] - h.r, x1: h.n.center[0] + h.r, y0: h.n.center[1] - h.r, y1: h.n.center[1] + h.r,
+          fillcolor: css("--bad"), opacity: Math.min(0.35, 0.06 + 0.45 * h.share),
+          line: {color: css("--bad"), width: h.share >= 0.25 ? 2 : 1},
+        }));
+      },
+      annotations() {
+        if (!on) return [];
+        return halos.filter(h => h.share >= LABEL_SHARE).slice(0, MAX_HALOS_LABELLED).map(h => ({
+          x: h.n.center[0], y: h.n.center[1] + h.r, yanchor: "bottom", showarrow: false,
+          text: `⚠ ${esc(h.n.label)} · ${pct(h.share, 1)}% inauthentic`,
+          font: {size: 11, color: "#fff"}, bgcolor: css("--bad"), borderpad: 3, opacity: 0.92,
+        }));
+      },
+    };
+  })();
+  // ==== end INAUTHENTIC HIGHLIGHT ========================================================
+
+  function layout() {
+    const t = topicById.get(selected);
+    const labelled = (t ? [...t.narratives] : [])
+      .sort((a, b) => narrById.get(b).size - narrById.get(a).size).slice(0, MAX_MAP_LABELS);
+    const annotations = labelled.map(id => {
+      const n = narrById.get(id);
+      return {
+        x: n.center[0], y: n.center[1], text: esc(n.label), showarrow: false,
+        font: {size: 12, color: css("--ink")}, bgcolor: css("--surface"), bordercolor: css("--border"),
+        borderpad: 3, borderwidth: 1, opacity: 0.92,
+      };
+    });
+    return {
+      margin: {l: 8, r: 8, t: 8, b: 8}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      xaxis: {visible: false, range: viewRanges()[0]}, yaxis: {visible: false, range: viewRanges()[1]},
+      showlegend: false, hovermode: "closest", dragmode: "pan",
+      annotations: [...annotations, ...INAUTH.annotations()], shapes: INAUTH.shapes(),  // INAUTH hook
+      hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}, align: "left"},
+      // Keep the user's pan/zoom across hovers; reframe on topic or zoom-mode change.
+      uirevision: (zoomToTopic ? "topic-" + selected : "all") + "|" + sub,
+    };
+  }
+  const mapEl = document.getElementById("map");
+  const plotConfig = {responsive: true, scrollZoom: true, displaylogo: false,
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "toImage"]};
+  function drawMap() {
+    if (!window.Plotly) { mapEl.replaceChildren(el("p", {className: "empty", textContent: "Plotly failed to load (offline?). Topic list and word clouds still work."})); return; }
+    Plotly.react(mapEl, traces(), layout(), plotConfig);
+  }
+
+  // ----------------------------------------------------------- word clouds
+  function layoutCloud(canvas, words) {
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    canvas._boxes = [];
+    if (!words.length) return;
+    const hi = words[0][1], lo = words[words.length - 1][1];
+    const maxF = Math.min(42, H / 4.2), minF = 11;
+    const ink = css("--ink"), ink2 = css("--ink-2");
+    const placed = [];
+    words.forEach(([word, weight], rank) => {
+      const f = minF + (maxF - minF) * Math.sqrt((weight - lo) / ((hi - lo) || 1));
+      ctx.font = `${rank < 3 ? 650 : 500} ${f}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+      const w = ctx.measureText(word).width, h = f * 1.05;
+      for (let s = 0; s < 1600; s++) {
+        const a = s * 0.21, r = 1.6 * a;
+        const x = W / 2 + r * Math.cos(a) * 1.7 - w / 2, y = H / 2 + r * Math.sin(a) - h / 2;
+        if (x < 2 || y < 2 || x + w > W - 2 || y + h > H - 2) continue;
+        if (placed.some(b => x < b.x + b.w + 4 && x + w + 4 > b.x && y < b.y + b.h && y + h > b.y)) continue;
+        const box = {x, y, w, h, word, weight};
+        placed.push(box);
+        ctx.fillStyle = rank < 5 ? ink : ink2;
+        ctx.textBaseline = "top";
+        ctx.fillText(word, x, y + f * 0.05);
+        break;
+      }
+    });
+    canvas._boxes = placed;
+  }
+  const tip = document.getElementById("tip");
+  function attachCloudTip(canvas) {
+    canvas.addEventListener("mousemove", e => {
+      const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      const b = (canvas._boxes || []).find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+      if (!b) { tip.hidden = true; return; }
+      tip.textContent = `${b.word} · weight ${b.weight.toFixed(4)}`;
+      tip.style.left = (e.clientX + 12) + "px"; tip.style.top = (e.clientY + 12) + "px";
+      tip.hidden = false;
+    });
+    canvas.addEventListener("mouseleave", () => { tip.hidden = true; });
+  }
+  function summaryEl(text) {
+    const p = el("p", {className: "summary"}, el("span", {className: "ai-tag", textContent: "AI summary"}), text);
+    p.querySelector(".ai-tag").dataset.tip = "Written by an LLM (NVIDIA Nemotron) from this group's most representative comments. It describes the discussion; it isn't a fact-check.";
+    return p;
+  }
+  function cloudCard(title, meta, words, examples, cls, summary, auth, swatch) {
+    const canvas = el("canvas", {role: "img", ariaLabel: `Word cloud: ${words.slice(0, 10).map(w => w[0]).join(", ")}`});
+    const h = el("h4", {textContent: title});
+    if (swatch) h.prepend(el("span", {className: "sw", style: `background:${swatch}`}));
+    const head = [h, el("div", {className: "meta", textContent: meta})];
+    if (auth) head.push(el("div", {className: "authline"}, authChip(auth),
+      ...(auth.n >= MIN_SCORED ? [el("span", {textContent: `${pct(auth.inauth, 1)}% uncertain/suspicious · ${pct(auth.coverage, 1)}% of comments scored`})] : [])));
+    if (summary) head.push(summaryEl(summary));
+    let card;
+    if (cls === "topic-card") {
+      card = el("div", {className: "card topic-card" + (summary ? " has-summary" : "")},
+        el("div", {}, ...head), el("div", {className: "side-cloud"}, canvas));
+    } else {
+      card = el("div", {className: "card " + (cls || "") + (summary ? " has-summary" : "")}, ...head, canvas);
+    }
+    if (examples && examples.length) {
+      card.append(el("ul", {className: "examples"}, ...examples.map(ex =>
+        el("li", {}, el("b", {textContent: "u/" + ex.author + ": "}), ex.text))));
+    }
+    canvas._words = words;
+    attachCloudTip(canvas);
+    return card;
+  }
+  const cloudsEl = document.getElementById("clouds");
+  function drawClouds() {
+    cloudsEl.replaceChildren();
+    const t = topicById.get(selected);
+    if (!t) { cloudsEl.append(el("p", {className: "empty", textContent: "No topics found."})); return; }
+    cloudsEl.append(cloudCard(`Topic: ${t.label}`, `${fmt.format(t.size)} items across ${t.narratives.length} narrative(s)`, t.keywords, null, "topic-card", t.summary, t._auth));
+    for (const id of narrOrder(t)) {
+      const n = narrById.get(id);
+      const card = cloudCard(n.label, `Narrative ${n.id} · ${fmt.format(n.size)} items` + (HAS_UP ? ` · ${fmt.format(n.upvotes)} upvotes` : ""), n.keywords, n.examples, "", n.summary, n._auth, narrColor(t, n.id));
+      if (n.by_band) card.querySelector(".meta").after(...bandsBar(n.by_band));
+      card.addEventListener("mouseenter", () => setHovered(n.id, card));
+      card.addEventListener("mouseleave", () => setHovered(null, null));
+      cloudsEl.append(card);
+    }
+    redrawCanvases();
+  }
+  const LINE_COLORS = ["#2a78d6", "#eb6834", "#1b9e77", "#8e5cd9", "#c99a06", "#d6457a", "#3aa6b9", "#7a8b3a"];
+  const narrOrder = t => [...t.narratives].sort((a, b) => narrById.get(b).size - narrById.get(a).size);
+  const narrColor = (t, id) => LINE_COLORS[narrOrder(t).indexOf(id) % LINE_COLORS.length];
+  function bandsBar(by) {
+    const tot = bandTotal(by);
+    const bar = el("div", {className: "bands", tabIndex: 0});
+    bar.append(...BANDS.filter(k => by[k]).map(k => el("span", {style: `width:${100 * by[k] / tot}%;background:var(--${k})`})));
+    const parts = BANDS.filter(k => by[k]).map(k => `${pct(by[k], tot)}% ${BAND_LABEL[k]}`);
+    bar.dataset.tip = "Who this narrative's engagement (upvotes + 1 per comment) comes from, by the author's authenticity: " + parts.join(", ") + ".";
+    return [bar, el("div", {className: "band-txt", textContent: parts.join(" · ")})];
+  }
+  function redrawCanvases() { cloudsEl.querySelectorAll("canvas").forEach(c => layoutCloud(c, c._words)); }
+
+  // ------------------------------------------------------------- timeline
+  const tlEl = document.getElementById("timeline");
+  const BINS = [[300, "5 minutes"], [900, "15 minutes"], [1800, "30 minutes"], [3600, "hour"], [3 * 3600, "3 hours"], [6 * 3600, "6 hours"], [86400, "day"], [7 * 86400, "week"], [30 * 86400, "30 days"]];
+  function drawTimeline() {
+    const t = topicById.get(selected);
+    const idx = idxBy(i => inSub(i) && P.t[i] != null);
+    const note = document.getElementById("tl-note");
+    if (!window.Plotly || idx.length < 2) { tlEl.replaceChildren(el("p", {className: "empty", textContent: "No timestamps to plot."})); note.textContent = ""; return; }
+    // Auto-scale to where the selected topic's narratives are active: the shortest time window
+    // holding 90% of their comments (all comments if the topic has too few). A small block of
+    // much older comments would otherwise stretch the axis over months of zeros.
+    const focus = t ? idx.filter(i => t.narratives.includes(P.narrative[i])) : [];
+    const ts = (focus.length >= 5 ? focus : idx).map(i => P.t[i]).sort((a, b) => a - b);
+    const k = Math.max(1, Math.ceil(0.9 * ts.length) - 1);
+    let best = 0;
+    for (let j = 1; j + k < ts.length; j++) if (ts[j + k] - ts[j] < ts[best + k] - ts[best]) best = j;
+    let lo = ts[best], hi = ts[Math.min(best + k, ts.length - 1)];
+    const pad = (hi - lo) * 0.03; lo -= pad; hi += pad;
+    if (hi - lo < 3600) { const mid = (lo + hi) / 2; lo = mid - 1800; hi = mid + 1800; }
+    const outside = idx.filter(i => P.t[i] < lo || P.t[i] > hi).length;
+    const [bin, binName] = BINS.find(([b]) => (hi - lo) / b <= 72) || BINS[BINS.length - 1];
+    const start = Math.floor(lo / bin) * bin, nb = Math.floor((hi - start) / bin) + 1;
+    const xs = Array.from({length: nb}, (_, k) => new Date((start + k * bin) * 1000));
+    const count = pred => { const c = new Array(nb).fill(0); for (const i of idx) { const x = P.t[i]; if (x >= lo && x <= hi && pred(i)) c[Math.floor((x - start) / bin)]++; } return c; };
+    // the whole discussion goes on its own right-hand axis, so the (smaller) narrative lines
+    // use the full height of the left axis instead of hugging zero
+    const twoAxes = !!t;
+    const traces = [{type: "scatter", mode: "lines", name: sub ? `All in r/${sub}` : "Whole discussion", x: xs, y: count(() => true),
+      yaxis: twoAxes ? "y2" : "y", line: {color: css("--context"), width: 1.5}, fill: "tozeroy", fillcolor: "rgba(137,135,129,0.14)",
+      hovertemplate: "%{y}<extra>%{fullData.name}</extra>"}];
+    if (t) for (const id of narrOrder(t)) {
+      const n = narrById.get(id), y = count(i => P.narrative[i] === id);
+      if (!y.some(Boolean)) continue;
+      traces.push({type: "scatter", mode: "lines", name: n.label, x: xs, y,
+        line: {color: narrColor(t, id), width: hovered === id ? 3.5 : 1.8},
+        opacity: hovered === null || hovered === id ? 1 : 0.35, hovertemplate: "%{y}<extra>%{fullData.name}</extra>"});
+    }
+    Plotly.react(tlEl, traces, {
+      margin: {l: 48, r: 48, t: 8, b: 30}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: {color: css("--ink-2"), size: 11}, hovermode: "x unified",
+      xaxis: {type: "date", gridcolor: css("--grid"), linecolor: css("--grid"), range: [new Date(start * 1000), new Date((start + nb * bin) * 1000)]},
+      yaxis: {title: {text: twoAxes ? `narrative comments per ${binName}` : `comments per ${binName}`, font: {size: 11}}, gridcolor: css("--grid"), rangemode: "tozero", fixedrange: true},
+      yaxis2: {title: {text: `all comments per ${binName}`, font: {size: 11}}, overlaying: "y", side: "right", showgrid: false, rangemode: "tozero", fixedrange: true, visible: twoAxes},
+      legend: {orientation: "h", y: -0.18, font: {size: 11}},
+      hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}},
+    }, {responsive: true, displaylogo: false, modeBarButtonsToRemove: ["select2d", "lasso2d", "toImage", "autoScale2d"]});
+    document.getElementById("tl-sub").textContent = t ? `whole discussion and the narratives of “${t.label}”` : "";
+    note.textContent = (outside ? `Zoomed to ${new Date(lo * 1000).toLocaleString()} – ${new Date(hi * 1000).toLocaleString()}, where this topic is active; ${fmt.format(outside)} item(s) outside it aren't shown. ` : "") +
+      "Hover over a narrative card to highlight its line.";
+  }
+
+  // ------------------------------------------------------------- behaviour
+  function setHovered(id, card) {
+    hovered = id;
+    cloudsEl.querySelectorAll(".card.hot").forEach(c => c.classList.remove("hot"));
+    if (card) card.classList.add("hot");
+    if (window.Plotly) { Plotly.react(mapEl, traces(), layout(), plotConfig); drawTimeline(); }
+  }
+  function select(id) {
+    selected = id; hovered = null;
+    const t = topicById.get(id);
+    document.getElementById("sel-title").textContent = t ? t.label : "—";
+    document.getElementById("sel-sub").textContent = t ? `${fmt.format(sizes.get(t.id) || 0)} items${sub ? " in r/" + sub : ""} · ${t.narratives.length} narrative(s)` : "";
+    renderTopicList(document.getElementById("topic-search").value);
+    drawMap(); drawClouds(); drawTimeline();
+  }
+  document.getElementById("show-noise").addEventListener("change", e => { showNoise = e.target.checked; drawMap(); });
+  document.getElementById("zoom-topic").addEventListener("change", e => { zoomToTopic = e.target.checked; drawMap(); });
+  document.getElementById("size-up").addEventListener("change", e => { sizeByUp = HAS_UP && e.target.checked; drawMap(); });
+  document.getElementById("fade-auth").addEventListener("change", e => { fadeByAuth = HAS_AUTH && e.target.checked; drawMap(); });
+  // Tooltips for numbers and encodings ([data-tip]); hover, keyboard focus and tap.
+  function showTip(t, x, y) {
+    tip.textContent = t.dataset.tip; tip.hidden = false;
+    const r = tip.getBoundingClientRect();
+    tip.style.left = Math.max(8, Math.min(x + 12, innerWidth - r.width - 8)) + "px";
+    tip.style.top = (y + 16 + r.height > innerHeight ? y - r.height - 10 : y + 16) + "px";
+  }
+  document.addEventListener("mouseover", e => { const t = e.target.closest("[data-tip]"); if (t) showTip(t, e.clientX, e.clientY); });
+  document.addEventListener("mouseout", e => { if (e.target.closest("[data-tip]")) tip.hidden = true; });
+  document.addEventListener("focusin", e => { const t = e.target.closest("[data-tip]"); if (t) { const r = t.getBoundingClientRect(); showTip(t, r.left, r.bottom); } });
+  document.addEventListener("focusout", () => { tip.hidden = true; });
+
+  renderTiles();
+  select(selected);
+  if (window.Plotly) {
+    mapEl.on("plotly_click", ev => {
+      const i = ev.points[0] && ev.points[0].customdata;
+      if (i != null && P.topic[i] !== -1 && P.topic[i] !== selected) select(P.topic[i]);
+    });
+  }
+  // Re-theme on OS or viewer theme change; relayout clouds on resize.
+  const rerender = () => { drawMap(); redrawCanvases(); drawTimeline(); };
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
+  new MutationObserver(rerender).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(redrawCanvases, 150); });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Narrative Map</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f3f2ee;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --border: rgba(11,11,11,0.10);
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --context: #b9b7af;
+  --noise: #d6d4cc;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #d95926; --context: #55544f; --noise: #343431;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781; --grid: #2c2c2a;
+  --border: rgba(255,255,255,0.10);
+  --series-1: #3987e5; --series-2: #d95926; --context: #55544f; --noise: #343431;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: max(20px, env(safe-area-inset-top)) 20px 40px;
+}
+.wrap { max-width: 1400px; margin: 0 auto; }
+header h1 { font-size: 22px; margin: 0 0 2px; font-weight: 650; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--ink-2); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 18px 0; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile .v { font-size: 24px; font-weight: 650; }
+.tile .k { color: var(--ink-2); font-size: 12px; }
+.layout { display: grid; grid-template-columns: minmax(260px, 320px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+aside.panel { position: sticky; top: max(12px, env(safe-area-inset-top)); max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
+@media (max-width: 860px) { aside.panel { position: static; max-height: 360px; } }
+.panel-head { padding: 12px 14px 8px; border-bottom: 1px solid var(--border); }
+.panel-head h2 { font-size: 13px; margin: 0 0 8px; color: var(--ink-2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+input[type=search] {
+  width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--ink); font: inherit;
+}
+#topic-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+#topic-list li button {
+  all: unset; display: block; width: 100%; box-sizing: border-box; cursor: pointer;
+  padding: 8px 10px; border-radius: 7px;
+}
+#topic-list li button:hover { background: var(--surface-2); }
+#topic-list li button[aria-pressed="true"] { background: var(--surface-2); box-shadow: inset 3px 0 0 var(--series-1); }
+#topic-list li button:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+.t-label { font-weight: 600; display: block; }
+.t-meta { color: var(--ink-2); font-size: 12px; display: block; }
+.t-bar { height: 3px; border-radius: 2px; background: var(--series-1); margin-top: 6px; opacity: .85; }
+.map-head { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.map-head h2 { margin: 0; font-size: 17px; }
+.map-head .sub { color: var(--ink-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--ink-2); font-size: 12px; margin-left: auto; align-items: center; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.legend label { cursor: pointer; }
+#map { width: 100%; height: min(68vh, 640px); min-height: 360px; }
+.hint { color: var(--muted); font-size: 12px; padding: 0 14px 10px; margin: 0; }
+h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .04em; margin: 22px 2px 10px; font-weight: 600; }
+.clouds { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; position: relative; }
+.card.topic-card { grid-column: 1 / -1; }
+.card h4 { margin: 0; font-size: 15px; }
+.card .meta { color: var(--ink-2); font-size: 12px; margin-bottom: 6px; }
+.card canvas { width: 100%; height: 190px; display: block; }
+.card.topic-card canvas { height: 220px; }
+.card.hot { box-shadow: 0 0 0 2px var(--series-2); }
+.examples { margin: 8px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--border); }
+.examples li { padding: 7px 0 0; color: var(--ink-2); font-size: 12.5px; }
+.examples b { color: var(--ink); font-weight: 600; }
+.tip {
+  position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.empty { color: var(--muted); padding: 16px; }
+.tile[data-tip], .bands[data-tip] { cursor: help; }
+.tile .k { text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+.legend .enc { display: none; gap: 6px 14px; flex-wrap: wrap; align-items: center; }
+.legend .enc.on { display: flex; }
+.legend .ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--series-1); margin-right: 5px; vertical-align: -1px; }
+.legend .fade { display: inline-flex; gap: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend .fade i { margin: 0; }
+.bands { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-2); margin: 6px 0 2px; }
+.bands span { display: block; height: 100%; }
+.band-txt { color: var(--ink-2); font-size: 12px; }
+:root { --ok: #1a7f37; --warn: #b07d00; --bad: #cf222e; --na: #b9b7af; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; } }
+:root[data-theme="dark"] { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; }
+.tip { max-width: 300px; }
+select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink); font: inherit; margin-bottom: 8px; }
+.t-auth { display: inline-block; font-size: 11px; font-weight: 650; padding: 0 6px; border-radius: 8px; margin-left: 6px; vertical-align: 1px; }
+.a-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.a-warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.a-bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.a-na { color: var(--muted); background: var(--surface-2); }
+.authline { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; color: var(--ink-2); margin: 4px 0 6px; }
+.authline .t-auth { margin-left: 0; font-size: 12px; padding: 1px 8px; }
+.summary { font-size: 14.5px; line-height: 1.55; margin: 8px 0; color: var(--ink); }
+.ai-tag { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--series-1); margin-right: 6px; }
+.card.topic-card { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 4px 20px; align-items: start; }
+.card.topic-card .summary { font-size: 17px; line-height: 1.55; margin: 6px 0 4px; }
+.card.topic-card canvas { height: 170px; }
+.card.topic-card .side-cloud .meta { margin: 0; }
+@media (max-width: 760px) { .card.topic-card { grid-template-columns: 1fr; } }
+.card.has-summary:not(.topic-card) canvas { height: 110px; opacity: .85; }
+.card .sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+#timeline { width: 100%; height: 280px; }
+.tl-note { color: var(--muted); font-size: 12px; padding: 0 14px 10px; margin: 0; }
+.panel.tl { margin-top: 16px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.3/plotly-gl2d.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Narrative Map</h1>
+    <p id="subtitle"></p>
+  </header>
+  <section class="tiles" id="tiles"></section>
+  <div class="layout">
+    <aside class="panel" aria-label="Topics">
+      <div class="panel-head">
+        <h2>Topics</h2>
+        <select id="sub-filter" aria-label="Filter by subreddit" hidden></select>
+        <input type="search" id="topic-search" placeholder="Filter topics or keywords…" aria-label="Filter topics">
+      </div>
+      <ol id="topic-list"></ol>
+    </aside>
+    <main>
+      <section class="panel">
+        <div class="map-head">
+          <h2 id="sel-title"></h2><span class="sub" id="sel-sub"></span>
+          <div class="legend">
+            <span><i style="background:var(--series-1)"></i>Selected topic</span>
+            <span><i style="background:var(--series-2)"></i>Hovered narrative</span>
+            <span><i style="background:var(--context)"></i>Other topics</span>
+            <label data-tip="Noise = comments that don't belong to any narrative: too short, off-topic or one of a kind (jokes, 'this', one-word replies). The clustering leaves them unassigned rather than forcing them into a group. Tick to show them as grey dots."><input type="checkbox" id="show-noise"> Noise</label>
+            <label><input type="checkbox" id="zoom-topic"> Zoom to topic</label>
+          </div>
+          <div class="legend enc" id="enc" style="flex-basis:100%;margin-left:0">
+            <label id="enc-up" hidden data-tip="Bigger dot = more upvotes (square-root scale, so a few viral comments don't swamp the map)."><input type="checkbox" id="size-up" checked> Size = upvotes</label>
+            <label id="enc-auth" hidden data-tip="Each dot fades with its author's authenticity score: solid at 90+, about half at 55, faint below 30. Hollow rings are authors we didn't score (only a thread's most engaged commenters are scored)."><input type="checkbox" id="fade-auth" checked>
+              Opacity = author authenticity <span class="fade" aria-hidden="true"><i style="background:var(--series-1);opacity:1"></i><i style="background:var(--series-1);opacity:.55"></i><i style="background:var(--series-1);opacity:.2"></i></span>high → low · <span class="ring" aria-hidden="true"></span>not scored</label>
+            <!-- INAUTH hook (highlight inauthentic) -->
+            <label id="enc-inauth" hidden data-tip="Red dots = comments by accounts scored suspicious, amber = uncertain, drawn on top. A red halo marks each narrative where a large share of the scored engagement comes from such accounts: the stronger the halo, the larger that share."><input type="checkbox" id="hl-inauth" checked>
+              Highlight inauthentic <span class="fade" aria-hidden="true"><i style="background:var(--bad)"></i><i style="background:var(--warn)"></i></span></label>
+          </div>
+        </div>
+        <div id="map" role="img" aria-label="2D map of all comments, coloured by the selected topic"></div>
+        <p class="hint" id="hint">Each dot is a post or comment, placed by meaning (UMAP of sentence embeddings). Click a dot to select its topic; scroll to zoom, double-click to reset.</p>
+      </section>
+      <section class="panel tl">
+        <div class="map-head"><h2>Activity over time</h2><span class="sub" id="tl-sub"></span></div>
+        <div id="timeline" role="img" aria-label="Comments over time, overall and per narrative of the selected topic"></div>
+        <p class="tl-note" id="tl-note"></p>
+      </section>
+      <h3 class="section">Summaries <span style="text-transform:none;letter-spacing:0;font-weight:400">· written by an AI model from the comments; word clouds show each group's most distinctive words</span></h3>
+      <div class="clouds" id="clouds"></div>
+    </main>
+  </div>
+</div>
+<div class="tip" id="tip" hidden></div>
+<script type="application/json" id="candor-data">{"meta":{"source":"r/technology · A network crash grounded every flight in the US, only the third time in history","labels":"LLM (nemotron-3.5-super-vl)","generated":"2026-11-14 21:33 UTC","n_items":24,"n_noise":2,"has_upvotes":true,"has_authenticity":true,"engagement":{"upvotes":710,"auth_score":92.2,"inauth_share":0.0,"n_scored":23,"coverage":0.958,"by_band":{"ok":732,"warn":0,"bad":0,"na":2}},"params":{"embedder":"gemini","min_cluster_size":3,"selection":"eom","topic_method":"agglomerative","topic_threshold":0.06}},"points":{"x":[-5.021,-4.875,-3.591,-3.591,-4.253,-3.181,-3.744,-4.885,-2.794,-2.747,-5.294,-5.88,-5.469,-5.802,-6.295,-4.456,-5.384,-5.096,-5.812,-3.509,-4.703,-5.507,-5.299,-4.513],"y":[1.765,1.216,0.307,1.283,0.634,0.697,0.8,0.379,1.083,0.392,0.962,0.655,-0.666,1.195,1.557,1.905,1.528,-0.946,2.041,-0.244,-0.65,2.388,-0.044,-0.227],"narrative":[2,2,0,0,-1,0,0,2,0,0,2,2,1,2,2,2,2,1,2,-1,1,2,2,1],"topic":[0,0,2,2,-1,2,2,0,2,2,0,0,1,0,0,0,0,1,0,-1,1,0,0,1],"author":["ArgentineBeauty","feel-the-avocado","Syssareth","feel-the-avocado","Head_Bread_3431","-Nightopian-","Burnz5150","Kahnza","NikkoE82","Kastenbrot","IncidentalIncidence","Zeusifer","ShadowNick","SammieStones","IncidentalIncidence","yeo_lim-4605","IncidentalIncidence","Formal-Hawk9274","Low_Search_6667","mrg1957","vessel_for_the_soul","motor_nymph56","dc912","jc-from-sin"],"subreddit":["technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology","technology"],"kind":["post","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment"],"text":["A network crash grounded every flight in the US, only the third time in history On Friday alone, more than 4,700 flights were canceled and around 10,000 delayed, according to Flightradar24 data cited by Reuters. It's only the third nationwide ground stop...","\"only the third time in history\" is a key point there. People are surprised that they still use 8\" floppy disks and other such technology in the traffic control system but the fact is it doesnt really crash very often.","I'm not surprised that they'd stick with ol' reliable instead of risking unstable upgrades (maybe a little surprised it's that old though), but I am surprised that they can apparently still get parts to repair it, because surely they've had parts need replacing at some point.","You just bought back a memory. Telecom NZ ran the public telephone network on Japanese NEAX digital exchanges which were deployed in the 1980s. They used a tape backup system. As parts started to get harder to come by, they commissioned a company to create a backup system which would talk to the NEAX via the electroma…","My company has used the same software since like the late 70s and it’s great and fast and efficient. a few years back they got a new oracle program which fucking sucks, slow af, crashes al the time etc. most of us older employees still use the old system when we can although there’s a lot of restrictions on it now bec…","Microsoft continued issuing patches and updates for Windows XP long after being discontinued because major clients still relied on them. It's not hard to believe there are parts being produced solely for a major client like the US Government.","When I was in the navy, we used systems from the 70’s. We had refrigerator sized computers, with massive Nintendo sized cards. I guess the navy had a massive stockpile of replacements all bought in the 70’s and 80’s in some warehouse in Pennsylvania. So we just kept using old tech instead of innovating and at much low…","And the first time flights were grounded wasn't a software issue. It was 9/11.","Can’t easily hack a floppy disk.","Security by obscurity is a thing, but it's not as safe as most like to believe.","those are being phased out, btw. It's true that aviation generally has an \"if it ain't broke\" mentality but you do have to modernize things every so often. The replacement system (it says in the article, which I know that nobody read) is meant to go online at the end of 2028.","The FAA has already tapped AT&T to build the network that replaces FTI by the end of 2028, as part of the same overhaul that's finally retiring floppy disks. Surprise! That White House press conference about Sean Duffy needing congress to approve $50B in emergency funds to fix this appears to have been complete bullsh…","\"Always was\" he wants to give that $50B to his son in law that runs the AI company they tried to implement yesterday. It's a giant grift.","Yes. Ding ding ding! We are already 70% through the upgrades to the system. Also from what I understand copper lines cant be overloaded so what really happened yesterday? https://www.l3harris.com/all-capabilities/faa-telecommunications-infrastructure-fti","of course copper lines have a capacity. But in this case it wasn't the transmission that was apparently overloaded, but the routers.","If one network crash can ground every US flight, independent fallbacks are a basic resilience requirement.","if you read the article, the network didn't actually go down -- some of the routers crashed and they called the ground stop because they weren't sure that the data that was coming through the ones that were still up was completely reliable. The FTI network itself is actually pretty redundant. The FAA requires physical…","You mean republicans","\" routers \"got overloaded with data\" and started spitting out inconsistent readings\" Oof, how does the system this important ever generate incorrect data in the first place?","They don't have a real life test/development/beta system with real workload.","None of them will cost $50billion to \"upgrade\". *Estimate only **Estimates are free","We keep learning more slowly… Current press conferences quote “one locations router spiked to thousands of requests every three to five seconds…”. The answer we need is what caused that! And why did it take so long for that detail. None of the current “outdated” systems was designed to do that. No system is designed t…","But so many flights were still taking off…?","But at least you have the best tech companies in the world and the richest people in the world."],"t":[1794659531,1794660398,1794661652,1794662495,1794673824,1794665686,1794667954,1794672146,1794661666,1794662418,1794662181,1794670564,1794673147,1794675093,1794675231,1794659831,1794662797,1794661641,1794662749,1794669744,1794661634,1794674841,1794680640,1794680704],"upvotes":[306,121,39,12,12,3,3,9,5,7,5,29,11,2,3,58,52,16,6,2,5,2,1,1],"auth":[91.0,89.0,100.0,89.0,87.0,100.0,89.0,100.0,89.0,89.0,89.0,100.0,91.0,91.0,89.0,89.0,89.0,89.0,87.0,100.0,98.0,98.0,98.0,null],"band":["ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok",null]},"topics":[{"id":0,"label":"Legacy Systems","size":12,"narratives":[2],"keywords":[["faa",0.03807],["network",0.036282],["fti",0.032216],["routers",0.032216],["data",0.029025],["issue",0.025871],["ground",0.025871],["article",0.025871],["flights",0.025871],["crash",0.025871],["overloaded",0.025871],["ding",0.025871],["time",0.024162],["says article",0.01886],["redundant",0.01886],["says",0.01886],["read",0.01886],["probably fine",0.01886],["probably",0.01886],["press",0.01886],["nationwide",0.01886],["media",0.01886],["isn",0.01886],["network crash",0.01886],["lines",0.01886],["ground stop",0.01886],["history",0.01886],["routers crashed",0.01886],["time history",0.01886],["stop",0.01886]],"subreddits":[["technology",12]],"summary":"The discussion centers on legacy aviation systems, with commenters arguing they are reliable due to rare failures and redundant designs, supporting an \"if it ain't broke\" approach. Others likely advocate for modernization despite this proven stability, creating a tension between maintaining dependable existing systems and pursuing planned replacements.","upvotes":594,"auth_score":91.9,"inauth_share":0.0,"n_scored":12,"coverage":1.0,"by_band":{"ok":606,"warn":0,"bad":0,"na":0}},{"id":2,"label":"Legacy System Security","size":6,"narratives":[0],"keywords":[["parts",0.075988],["tape",0.051637],["surprised",0.048226],["backup",0.037645],["major",0.037645],["believe",0.037645],["bought",0.037645],["guess",0.037645],["navy",0.037645],["neax",0.037645],["instead",0.037645],["tape head",0.037645],["sized",0.037645],["massive",0.037645],["head",0.037645],["used",0.034425],["old",0.034425],["data",0.028967],["continued",0.021587],["come commissioned",0.021587],["commissioned",0.021587],["commissioned company",0.021587],["company create",0.021587],["computer",0.021587],["cost easily",0.021587],["collect data",0.021587],["come",0.021587],["bought warehouse",0.021587],["client",0.021587],["backup parts",0.021587]],"subreddits":[["technology",6]],"summary":"The discussion centers on legacy system security, with commenters arguing that outdated technology is difficult to hack using modern methods. They also note that continued vendor support and custom part manufacturing allow these older systems to remain operational and secure.","upvotes":69,"auth_score":93.1,"inauth_share":0.0,"n_scored":6,"coverage":1.0,"by_band":{"ok":75,"warn":0,"bad":0,"na":0}},{"id":1,"label":"Political corruption","size":4,"narratives":[1],"keywords":[["world",0.199436],["ai",0.114368],["best",0.114368],["ai company",0.114368],["companies",0.114368],["companies world",0.114368],["company tried",0.114368],["best tech",0.114368],["free",0.114368],["estimate",0.114368],["estimate estimates",0.114368],["estimates",0.114368],["free best",0.114368],["estimates free",0.114368],["giant grift",0.114368],["cost upgrade",0.114368],["mean",0.114368],["mean republicans",0.114368],["grift",0.114368],["grift mean",0.114368],["implement",0.114368],["implement yesterday",0.114368],["law",0.114368],["law runs",0.114368],["richest",0.114368],["richest world",0.114368],["republicans",0.114368],["republicans cost",0.114368],["runs",0.114368],["runs ai",0.114368]],"subreddits":[["technology",4]],"summary":"The discussion centers on a proposed $50 billion expenditure, with participants debating whether it constitutes a legitimate public investment or a corrupt scheme. Commenters specifically allege that the funds would be misused to enrich insiders, particularly through a relative's AI company, framing it as a political grift.","upvotes":33,"auth_score":92.2,"inauth_share":0.0,"n_scored":3,"coverage":0.75,"by_band":{"ok":35,"warn":0,"bad":0,"na":2}}],"narratives":[{"id":0,"label":"Legacy systems offer security","topic":2,"size":6,"center":[-3.386,0.749],"upvotes":69,"auth_score":93.1,"inauth_share":0.0,"n_scored":6,"coverage":1.0,"by_band":{"ok":75,"warn":0,"bad":0,"na":0},"summary":"Commenters argue that legacy systems provide security because their outdated technology is difficult to hack or access using modern methods. They also note that continued vendor support and custom part manufacturing allow these older systems to remain operational and secure.","keywords":[["parts",0.075988],["tape",0.051637],["surprised",0.048226],["backup",0.037645],["major",0.037645],["believe",0.037645],["bought",0.037645],["guess",0.037645],["navy",0.037645],["neax",0.037645],["instead",0.037645],["tape head",0.037645],["sized",0.037645],["massive",0.037645],["head",0.037645],["used",0.034425],["old",0.034425],["data",0.028967],["continued",0.021587],["come commissioned",0.021587],["commissioned",0.021587],["commissioned company",0.021587],["company create",0.021587],["computer",0.021587],["cost easily",0.021587],["collect data",0.021587],["come",0.021587],["bought warehouse",0.021587],["client",0.021587],["backup parts",0.021587]],"examples":[{"author":"Syssareth","text":"I'm not surprised that they'd stick with ol' reliable instead of risking unstable upgrades (maybe a little surprised it's that old though), but I am surprised that they can apparently still get parts to repair it, because surely they've ha…"},{"author":"-Nightopian-","text":"Microsoft continued issuing patches and updates for Windows XP long after being discontinued because major clients still relied on them. It's not hard to believe there are parts being produced solely for a major client like the US Governme…"},{"author":"Burnz5150","text":"When I was in the navy, we used systems from the 70’s. We had refrigerator sized computers, with massive Nintendo sized cards. I guess the navy had a massive stockpile of replacements all bought in the 70’s and 80’s in some warehouse in Pe…"}]},{"id":1,"label":"Political corruption grift","topic":1,"size":4,"center":[-4.9,-0.658],"upvotes":33,"auth_score":92.2,"inauth_share":0.0,"n_scored":3,"coverage":0.75,"by_band":{"ok":35,"warn":0,"bad":0,"na":2},"summary":"The commenters argue that a proposed $50 billion expenditure is a political grift designed to enrich insiders, specifically alleging that funds would be directed to a relative's AI company. They frame this as a corrupt misuse of public money rather than a legitimate upgrade.","keywords":[["world",0.199436],["ai",0.114368],["best",0.114368],["ai company",0.114368],["companies",0.114368],["companies world",0.114368],["company tried",0.114368],["best tech",0.114368],["free",0.114368],["estimate",0.114368],["estimate estimates",0.114368],["estimates",0.114368],["free best",0.114368],["estimates free",0.114368],["giant grift",0.114368],["cost upgrade",0.114368],["mean",0.114368],["mean republicans",0.114368],["grift",0.114368],["grift mean",0.114368],["implement",0.114368],["implement yesterday",0.114368],["law",0.114368],["law runs",0.114368],["richest",0.114368],["richest world",0.114368],["republicans",0.114368],["republicans cost",0.114368],["runs",0.114368],["runs ai",0.114368]],"examples":[{"author":"Formal-Hawk9274","text":"You mean republicans"},{"author":"jc-from-sin","text":"But at least you have the best tech companies in the world and the richest people in the world."},{"author":"vessel_for_the_soul","text":"None of them will cost $50billion to \"upgrade\". *Estimate only **Estimates are free"}]},{"id":2,"label":"Legacy systems are reliable","topic":0,"size":12,"center":[-5.341,1.372],"upvotes":594,"auth_score":91.9,"inauth_share":0.0,"n_scored":12,"coverage":1.0,"by_band":{"ok":606,"warn":0,"bad":0,"na":0},"summary":"Commenters argue that legacy aviation systems are dependable because they rarely fail and incorporate redundant designs, noting that recent disruptions were isolated rather than total network collapses. They suggest this proven stability supports an \"if it ain't broke\" approach, even as replacements are planned.","keywords":[["faa",0.03807],["network",0.036282],["fti",0.032216],["routers",0.032216],["data",0.029025],["issue",0.025871],["ground",0.025871],["article",0.025871],["flights",0.025871],["crash",0.025871],["overloaded",0.025871],["ding",0.025871],["time",0.024162],["says article",0.01886],["redundant",0.01886],["says",0.01886],["read",0.01886],["probably fine",0.01886],["probably",0.01886],["press",0.01886],["nationwide",0.01886],["media",0.01886],["isn",0.01886],["network crash",0.01886],["lines",0.01886],["ground stop",0.01886],["history",0.01886],["routers crashed",0.01886],["time history",0.01886],["stop",0.01886]],"examples":[{"author":"feel-the-avocado","text":"\"only the third time in history\" is a key point there. People are surprised that they still use 8\" floppy disks and other such technology in the traffic control system but the fact is it doesnt really crash very often."},{"author":"IncidentalIncidence","text":"if you read the article, the network didn't actually go down -- some of the routers crashed and they called the ground stop because they weren't sure that the data that was coming through the ones that were still up was completely reliable…"},{"author":"SammieStones","text":"Yes. Ding ding ding! We are already 70% through the upgrades to the system. Also from what I understand copper lines cant be overloaded so what really happened yesterday? https://www.l3harris.com/all-capabilities/faa-telecommunications-inf…"}]}]}</script>
+<script>
+(function () {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("candor-data").textContent);
+  const P = DATA.points, N = P.x.length;
+  const narrById = new Map(DATA.narratives.map(n => [n.id, n]));
+  const topicById = new Map(DATA.topics.map(t => [t.id, t]));
+  const fmt = new Intl.NumberFormat();
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+
+  const HAS_UP = !!DATA.meta.has_upvotes && Array.isArray(P.upvotes);
+  const HAS_AUTH = !!DATA.meta.has_authenticity && Array.isArray(P.auth);
+  const BAND_LABEL = {ok: "likely authentic", warn: "uncertain", bad: "suspicious", na: "not scored"};
+  const BANDS = ["ok", "warn", "bad", "na"];
+  let sizeByUp = HAS_UP, fadeByAuth = HAS_AUTH;
+  // Size: square root of upvotes, capped at the 98th percentile so one viral comment doesn't dominate.
+  const upCap = HAS_UP ? Math.max(1, [...P.upvotes].map(u => u || 0).sort((a, b) => a - b)[Math.floor(0.98 * (N - 1))] || 1) : 1;
+  const upR = HAS_UP ? P.upvotes.map(u => Math.sqrt(Math.min(u || 0, upCap) / upCap)) : null;
+  // Opacity: authenticity 20 -> 0.08, 90+ -> 1 (linear in between); unscored authors are hollow rings.
+  const authAlpha = a => Math.max(0.08, Math.min(1, 0.08 + 0.92 * (a - 20) / 70));
+  const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+  const bandTotal = by => BANDS.reduce((s, k) => s + (by[k] || 0), 0);
+
+  const idxBy = pred => { const out = []; for (let i = 0; i < N; i++) if (pred(i)) out.push(i); return out; };
+  let selected = DATA.topics.length ? DATA.topics[0].id : null;
+  let hovered = null;
+  let showNoise = false;
+
+  // ---------------------------------------------------------------- header
+  const m = DATA.meta;
+  document.getElementById("subtitle").textContent =
+    `${m.source || "dataset"} · generated ${m.generated} · embeddings: ${m.params.embedder} · HDBSCAN ${m.params.selection}, min cluster ${m.params.min_cluster_size} · topics: ${m.params.topic_method} @ ${m.params.topic_threshold}` +
+    (m.labels ? ` · labels: ${m.labels}` : "");
+  // ------------------------------------------------- subreddit filter
+  let sub = "";  // "" = all subreddits
+  const inSub = i => !sub || P.subreddit[i] === sub;
+  const subCounts = new Map();
+  P.subreddit.forEach(s => { if (s) subCounts.set(s, (subCounts.get(s) || 0) + 1); });
+  const subSel = document.getElementById("sub-filter");
+  if (subCounts.size > 1) {
+    subSel.hidden = false;
+    subSel.append(el("option", {value: "", textContent: `All subreddits (${fmt.format(N)})`}),
+      ...[...subCounts].sort((a, b) => b[1] - a[1]).map(([s, c]) => el("option", {value: s, textContent: `r/${s} (${fmt.format(c)})`})));
+  }
+  // Authenticity of a set of points: engagement-weighted (log(1+upvotes)+1) mean of the authors' scores.
+  function authOf(idx) {
+    let w = 0, ws = 0, bad = 0, n = 0;
+    for (const i of idx) {
+      if (!HAS_AUTH || P.auth[i] == null) continue;
+      const x = Math.log1p(HAS_UP ? (P.upvotes[i] || 0) : 0) + 1;
+      w += x; ws += x * P.auth[i]; n++;
+      if (P.band[i] === "warn" || P.band[i] === "bad") bad += x;
+    }
+    return {score: w ? ws / w : null, inauth: w ? bad / w : null, n, coverage: idx.length ? n / idx.length : 0};
+  }
+  const MIN_SCORED = 3;  // fewer scored comments than this: no score shown
+  const authClass = s => s == null ? "a-na" : s >= 70 ? "a-ok" : s >= 40 ? "a-warn" : "a-bad";
+  const AUTH_TIP = "Authenticity score of this group: the average authenticity score (0–100) of the authors of its comments, each comment weighted by its engagement (log of upvotes + 1). 70+ = mostly likely-authentic accounts, 40–69 = mixed, below 40 = mostly suspicious.";
+  function authChip(a, cls = "t-auth") {
+    const c = el("span", {className: `${cls} ${authClass(a.n >= MIN_SCORED ? a.score : null)}`,
+      textContent: a.n >= MIN_SCORED ? `Authenticity ${Math.round(a.score)}` : "Authenticity n/a"});
+    c.dataset.tip = a.n >= MIN_SCORED ? AUTH_TIP + ` Based on ${a.n} scored comments (${pct(a.n, a.n / (a.coverage || 1))}% of the group).`
+      : `Fewer than ${MIN_SCORED} of this group's comments come from scored accounts, so it gets no score.`;
+    return c;
+  }
+
+  function renderTiles() {
+    const idx = idxBy(inSub), clustered = idx.filter(i => P.narrative[i] !== -1);
+    const nT = new Set(clustered.map(i => P.topic[i])).size, nN = new Set(clustered.map(i => P.narrative[i])).size;
+    const tiles = [
+      [fmt.format(idx.length), "posts & comments", "Every post and comment on the map (empty texts are left out)" + (sub ? `, in r/${sub}.` : ".")],
+      [fmt.format(nT), "topics", "What people talk about: groups of related narratives, merged by meaning."],
+      [fmt.format(nN), "narratives", "What people argue: clusters of comments that make the same point, found with HDBSCAN on their embeddings."],
+      [pct(idx.length - clustered.length, idx.length) + "%", "unclustered (noise)", "Comments too short or too unique to belong to any narrative (jokes, one-word replies). Hidden on the map unless you tick Noise."],
+    ];
+    if (HAS_UP) tiles.push([fmt.format(idx.reduce((a, i) => a + (P.upvotes[i] || 0), 0)), "upvotes", "Sum of the upvotes of every item shown, as on Reddit when it was scraped."]);
+    if (HAS_AUTH) {
+      const a = authOf(idx);
+      tiles.push([a.score == null ? "–" : String(Math.round(a.score)), "authenticity score", AUTH_TIP + ` ${pct(a.n, idx.length)}% of these comments come from scored accounts.`]);
+      tiles.push([a.inauth == null ? "–" : pct(a.inauth, 1) + "%", "of scored engagement from uncertain or suspicious accounts",
+        "Engagement (log of upvotes + 1) of comments by accounts labelled uncertain or suspicious, as a share of all comments by scored accounts."]);
+    }
+    document.getElementById("tiles").replaceChildren(...tiles.map(([v, k, tipText]) => {
+      const t = el("div", {className: "tile", tabIndex: 0}, el("div", {className: "v", textContent: v}), el("div", {className: "k", textContent: k}));
+      t.dataset.tip = tipText; return t;
+    }));
+  }
+  if (HAS_UP) document.getElementById("enc-up").hidden = false;
+  if (HAS_AUTH) document.getElementById("enc-auth").hidden = false;
+  if (HAS_UP || HAS_AUTH) {
+    document.getElementById("enc").classList.add("on");
+    document.getElementById("hint").textContent += HAS_AUTH
+      ? " Big, solid clusters are narratives with a lot of engagement from accounts that look authentic; faint ones lean on low-scoring accounts."
+      : " Dot size shows upvotes.";
+  }
+  if (HAS_AUTH) {  // topic and narrative scores, computed once for the whole dataset
+    for (const t of DATA.topics) t._auth = authOf(idxBy(i => P.topic[i] === t.id));
+    for (const n of DATA.narratives) n._auth = authOf(idxBy(i => P.narrative[i] === n.id));
+  }
+
+  // ------------------------------------------------------------ topic list
+  const list = document.getElementById("topic-list");
+  const topicSize = () => {  // items per topic within the subreddit filter
+    const c = new Map();
+    for (let i = 0; i < N; i++) if (P.topic[i] !== -1 && inSub(i)) c.set(P.topic[i], (c.get(P.topic[i]) || 0) + 1);
+    return c;
+  };
+  let sizes = topicSize();
+  function renderTopicList(filter = "") {
+    const q = filter.trim().toLowerCase();
+    list.replaceChildren();
+    const shown = DATA.topics.filter(t => (sizes.get(t.id) || 0) > 0 && (!q || t.label.toLowerCase().includes(q) ||
+      t.keywords.some(([w]) => w.includes(q)) || (t.summary || "").toLowerCase().includes(q)))
+      .sort((a, b) => sizes.get(b.id) - sizes.get(a.id));
+    if (!shown.length) { list.append(el("li", {className: "empty", textContent: "No matching topics"})); return; }
+    const maxSize = Math.max(1, ...shown.map(t => sizes.get(t.id)));
+    for (const t of shown) {
+      const size = sizes.get(t.id);
+      const subs = sub ? `${pct(size, t.size)}% of this topic is in r/${sub}`
+        : t.subreddits.map(([s, c]) => `r/${s} ${Math.round(100 * c / t.size)}%`).join(" · ");
+      const label = el("span", {className: "t-label", textContent: t.label});
+      if (t._auth) label.append(authChip(t._auth));
+      const btn = el("button", {type: "button"}, label,
+        el("span", {className: "t-meta", textContent: `${fmt.format(size)} items · ${t.narratives.length} narrative${t.narratives.length > 1 ? "s" : ""}`}),
+        el("span", {className: "t-meta", textContent: subs}),
+        el("div", {className: "t-bar", style: `width:${Math.max(2, 100 * size / maxSize)}%`}));
+      btn.setAttribute("aria-pressed", String(t.id === selected));
+      btn.addEventListener("click", () => select(t.id));
+      list.append(el("li", {}, btn));
+    }
+  }
+  document.getElementById("topic-search").addEventListener("input", e => renderTopicList(e.target.value));
+  subSel.addEventListener("change", () => {
+    sub = subSel.value; sizes = topicSize(); renderTiles();
+    const first = DATA.topics.filter(t => sizes.get(t.id)).sort((a, b) => sizes.get(b.id) - sizes.get(a.id))[0];
+    select(first ? first.id : null);
+  });
+
+  // ------------------------------------------------------------------- map
+  const hoverText = new Array(N);
+  for (let i = 0; i < N; i++) {
+    const n = narrById.get(P.narrative[i]);
+    const words = esc(P.text[i]).replace(/(.{1,70})(\s|$)/g, "$1<br>");
+    const who = `${P.kind[i] === "post" ? "post" : "comment"} by u/${esc(P.author[i])}${P.subreddit[i] ? " · r/" + esc(P.subreddit[i]) : ""}`;
+    const head = n ? `<b>${esc(n.label)}</b><br>topic: ${esc(topicById.get(n.topic).label)}` : "<b>Noise</b> (unclustered)";
+    const extra = [];
+    if (HAS_UP) extra.push(`▲ ${P.upvotes[i] == null ? "?" : fmt.format(P.upvotes[i])} upvotes`);
+    if (HAS_AUTH) extra.push(P.auth[i] == null ? "author not scored" : `author authenticity ${Math.round(P.auth[i])}/100 (${BAND_LABEL[P.band[i]]})`);
+    hoverText[i] = `${head}<br><span style="font-size:11px">${who}${extra.length ? "<br>" + extra.join(" · ") : ""}</span><br><br>${words}`;
+  }
+  const pick = (arr, idx) => idx.map(i => arr[i]);
+
+  function traces() {
+    const noise = idxBy(i => P.narrative[i] === -1 && inSub(i));
+    const other = idxBy(i => P.narrative[i] !== -1 && P.topic[i] !== selected && inSub(i));
+    const sel = idxBy(i => P.topic[i] === selected && P.narrative[i] !== hovered && inSub(i));
+    const hot = hovered === null ? [] : idxBy(i => P.narrative[i] === hovered && inSub(i));
+    const mk = (idx, name, color, size, opacity) => {
+      // big dots first so small ones stay visible on top
+      if (sizeByUp) idx = [...idx].sort((a, b) => upR[b] - upR[a]);
+      const open = i => fadeByAuth && P.auth[i] == null;
+      return {
+        type: "scattergl", mode: "markers", name, x: pick(P.x, idx), y: pick(P.y, idx),
+        text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
+        marker: {
+          color,
+          size: sizeByUp ? idx.map(i => size * (0.65 + 2.35 * upR[i])) : size,
+          opacity: fadeByAuth ? idx.map(i => open(i) ? Math.min(opacity, 0.7) : opacity * authAlpha(P.auth[i])) : opacity,
+          symbol: fadeByAuth ? idx.map(i => open(i) ? "circle-open" : "circle") : "circle",
+          line: {width: fadeByAuth ? 1.3 : 0, color},
+        },
+      };
+    };
+    return [
+      mk(showNoise ? noise : [], "noise", css("--noise"), 4, 0.7),
+      mk(other, "other", css("--context"), 4.5, 0.75),
+      mk(sel, "selected", css("--series-1"), 7, 0.9),
+      mk(hot, "hovered", css("--series-2"), 8, 1),
+      ...INAUTH.trace(),  // INAUTH hook
+    ];
+  }
+  // View framing uses Tukey fences (IQR-based) so far-off UMAP islands, e.g.
+  // copy-pasted bot boilerplate, don't squash the main cloud. Zooming out
+  // (or the modebar's autoscale) still reaches them.
+  const quantile = (s, q) => s[Math.floor(q * (s.length - 1))];
+  const fenced = (arr, k, padFrac) => {
+    if (!arr.length) return undefined;
+    const s = [...arr].sort((a, b) => a - b);
+    const q1 = quantile(s, 0.25), q3 = quantile(s, 0.75), iqr = (q3 - q1) || 1;
+    const lo = Math.max(s[0], q1 - k * iqr), hi = Math.min(s[s.length - 1], q3 + k * iqr);
+    const pad = padFrac * ((hi - lo) || 1);
+    return [lo - pad, hi + pad];
+  };
+  const fullX = fenced(P.x, 1.5, 0.04), fullY = fenced(P.y, 1.5, 0.04);
+  let zoomToTopic = false;
+  function viewRanges() {
+    if (!zoomToTopic) {
+      if (!sub) return [fullX, fullY];
+      const s = idxBy(inSub);  // frame the chosen subreddit's points
+      return [fenced(pick(P.x, s), 1.5, 0.06), fenced(pick(P.y, s), 1.5, 0.06)];
+    }
+    const idx = idxBy(i => P.topic[i] === selected && inSub(i));
+    if (!idx.length) return [fullX, fullY];
+    return [fenced(pick(P.x, idx), 1.0, 0.18), fenced(pick(P.y, idx), 1.0, 0.18)];
+  }
+  const MAX_MAP_LABELS = 6;  // more than this piles up; the cards list every narrative
+
+  // ==== INAUTHENTIC HIGHLIGHT ===========================================================
+  // Self-contained: to revert, delete this block, the <label id="enc-inauth"> after the
+  // "INAUTH hook" HTML comment, and the two JS lines marked "INAUTH hook".
+  // Comments by uncertain/suspicious accounts are drawn on top in amber/red, and every
+  // narrative gets a red halo whose strength grows with its inauthentic share of engagement,
+  // so narratives that lean on inauthentic accounts stand out anywhere on the map.
+  const INAUTH = (() => {
+    const available = HAS_AUTH;
+    let on = available;
+    const MIN_SHARE = 0.05, LABEL_SHARE = 0.15, MAX_HALOS_LABELLED = 4;
+    const box = document.getElementById("enc-inauth");
+    box.hidden = false; document.getElementById("enc").classList.add("on");
+    if (!available) {  // no author scores in this map (yet): show the control, explain why it's off
+      const cb = document.getElementById("hl-inauth"); cb.checked = false; cb.disabled = true;
+      box.style.opacity = ".55";
+      box.dataset.tip = "Not available yet: none of this map's authors have authenticity scores. It switches on once they're scored.";
+    }
+    if (available) {
+      // fading low-scoring dots would hide exactly what this layer shows
+      fadeByAuth = false; document.getElementById("fade-auth").checked = false;
+      document.getElementById("hl-inauth").addEventListener("change", e => { on = e.target.checked; drawMap(); });
+    }
+    const halos = available ? DATA.narratives.map(n => {
+      const idx = idxBy(i => P.narrative[i] === n.id);
+      const a = authOf(idx);
+      if (a.n < MIN_SCORED || !(a.inauth >= MIN_SHARE)) return null;
+      const d = idx.map(i => Math.hypot(P.x[i] - n.center[0], P.y[i] - n.center[1])).sort((p, q) => p - q);
+      return {n, share: a.inauth, r: Math.max(0.15, 1.2 * d[Math.floor(d.length / 2)])};
+    }).filter(Boolean).sort((p, q) => q.share - p.share) : [];
+    const pts = available ? idxBy(i => P.band[i] === "warn" || P.band[i] === "bad") : [];
+    return {
+      trace() {  // drawn last, on top of the topic layers
+        if (!on) return [];
+        const idx = pts.filter(i => inSub(i) && (showNoise || P.narrative[i] !== -1));
+        return [{
+          type: "scattergl", mode: "markers", name: "inauthentic", x: pick(P.x, idx), y: pick(P.y, idx),
+          text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
+          marker: {color: idx.map(i => P.band[i] === "bad" ? css("--bad") : css("--warn")),
+            size: idx.map(i => (sizeByUp ? 7 * (0.65 + 2.35 * upR[i]) : 7) + 2), opacity: 0.95,
+            line: {width: 1, color: css("--surface")}},
+        }];
+      },
+      shapes() {
+        if (!on) return [];
+        return halos.map(h => ({
+          type: "circle", layer: "below", xref: "x", yref: "y",
+          x0: h.n.center[0] - h.r, x1: h.n.center[0] + h.r, y0: h.n.center[1] - h.r, y1: h.n.center[1] + h.r,
+          fillcolor: css("--bad"), opacity: Math.min(0.35, 0.06 + 0.45 * h.share),
+          line: {color: css("--bad"), width: h.share >= 0.25 ? 2 : 1},
+        }));
+      },
+      annotations() {
+        if (!on) return [];
+        return halos.filter(h => h.share >= LABEL_SHARE).slice(0, MAX_HALOS_LABELLED).map(h => ({
+          x: h.n.center[0], y: h.n.center[1] + h.r, yanchor: "bottom", showarrow: false,
+          text: `⚠ ${esc(h.n.label)} · ${pct(h.share, 1)}% inauthentic`,
+          font: {size: 11, color: "#fff"}, bgcolor: css("--bad"), borderpad: 3, opacity: 0.92,
+        }));
+      },
+    };
+  })();
+  // ==== end INAUTHENTIC HIGHLIGHT ========================================================
+
+  function layout() {
+    const t = topicById.get(selected);
+    const labelled = (t ? [...t.narratives] : [])
+      .sort((a, b) => narrById.get(b).size - narrById.get(a).size).slice(0, MAX_MAP_LABELS);
+    const annotations = labelled.map(id => {
+      const n = narrById.get(id);
+      return {
+        x: n.center[0], y: n.center[1], text: esc(n.label), showarrow: false,
+        font: {size: 12, color: css("--ink")}, bgcolor: css("--surface"), bordercolor: css("--border"),
+        borderpad: 3, borderwidth: 1, opacity: 0.92,
+      };
+    });
+    return {
+      margin: {l: 8, r: 8, t: 8, b: 8}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      xaxis: {visible: false, range: viewRanges()[0]}, yaxis: {visible: false, range: viewRanges()[1]},
+      showlegend: false, hovermode: "closest", dragmode: "pan",
+      annotations: [...annotations, ...INAUTH.annotations()], shapes: INAUTH.shapes(),  // INAUTH hook
+      hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}, align: "left"},
+      // Keep the user's pan/zoom across hovers; reframe on topic or zoom-mode change.
+      uirevision: (zoomToTopic ? "topic-" + selected : "all") + "|" + sub,
+    };
+  }
+  const mapEl = document.getElementById("map");
+  const plotConfig = {responsive: true, scrollZoom: true, displaylogo: false,
+    modeBarButtonsToRemove: ["select2d", "lasso2d", "toImage"]};
+  function drawMap() {
+    if (!window.Plotly) { mapEl.replaceChildren(el("p", {className: "empty", textContent: "Plotly failed to load (offline?). Topic list and word clouds still work."})); return; }
+    Plotly.react(mapEl, traces(), layout(), plotConfig);
+  }
+
+  // ----------------------------------------------------------- word clouds
+  function layoutCloud(canvas, words) {
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    canvas._boxes = [];
+    if (!words.length) return;
+    const hi = words[0][1], lo = words[words.length - 1][1];
+    const maxF = Math.min(42, H / 4.2), minF = 11;
+    const ink = css("--ink"), ink2 = css("--ink-2");
+    const placed = [];
+    words.forEach(([word, weight], rank) => {
+      const f = minF + (maxF - minF) * Math.sqrt((weight - lo) / ((hi - lo) || 1));
+      ctx.font = `${rank < 3 ? 650 : 500} ${f}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+      const w = ctx.measureText(word).width, h = f * 1.05;
+      for (let s = 0; s < 1600; s++) {
+        const a = s * 0.21, r = 1.6 * a;
+        const x = W / 2 + r * Math.cos(a) * 1.7 - w / 2, y = H / 2 + r * Math.sin(a) - h / 2;
+        if (x < 2 || y < 2 || x + w > W - 2 || y + h > H - 2) continue;
+        if (placed.some(b => x < b.x + b.w + 4 && x + w + 4 > b.x && y < b.y + b.h && y + h > b.y)) continue;
+        const box = {x, y, w, h, word, weight};
+        placed.push(box);
+        ctx.fillStyle = rank < 5 ? ink : ink2;
+        ctx.textBaseline = "top";
+        ctx.fillText(word, x, y + f * 0.05);
+        break;
+      }
+    });
+    canvas._boxes = placed;
+  }
+  const tip = document.getElementById("tip");
+  function attachCloudTip(canvas) {
+    canvas.addEventListener("mousemove", e => {
+      const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      const b = (canvas._boxes || []).find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+      if (!b) { tip.hidden = true; return; }
+      tip.textContent = `${b.word} · weight ${b.weight.toFixed(4)}`;
+      tip.style.left = (e.clientX + 12) + "px"; tip.style.top = (e.clientY + 12) + "px";
+      tip.hidden = false;
+    });
+    canvas.addEventListener("mouseleave", () => { tip.hidden = true; });
+  }
+  function summaryEl(text) {
+    const p = el("p", {className: "summary"}, el("span", {className: "ai-tag", textContent: "AI summary"}), text);
+    p.querySelector(".ai-tag").dataset.tip = "Written by an LLM (NVIDIA Nemotron) from this group's most representative comments. It describes the discussion; it isn't a fact-check.";
+    return p;
+  }
+  function cloudCard(title, meta, words, examples, cls, summary, auth, swatch) {
+    const canvas = el("canvas", {role: "img", ariaLabel: `Word cloud: ${words.slice(0, 10).map(w => w[0]).join(", ")}`});
+    const h = el("h4", {textContent: title});
+    if (swatch) h.prepend(el("span", {className: "sw", style: `background:${swatch}`}));
+    const head = [h, el("div", {className: "meta", textContent: meta})];
+    if (auth) head.push(el("div", {className: "authline"}, authChip(auth),
+      ...(auth.n >= MIN_SCORED ? [el("span", {textContent: `${pct(auth.inauth, 1)}% uncertain/suspicious · ${pct(auth.coverage, 1)}% of comments scored`})] : [])));
+    if (summary) head.push(summaryEl(summary));
+    let card;
+    if (cls === "topic-card") {
+      card = el("div", {className: "card topic-card" + (summary ? " has-summary" : "")},
+        el("div", {}, ...head), el("div", {className: "side-cloud"}, canvas));
+    } else {
+      card = el("div", {className: "card " + (cls || "") + (summary ? " has-summary" : "")}, ...head, canvas);
+    }
+    if (examples && examples.length) {
+      card.append(el("ul", {className: "examples"}, ...examples.map(ex =>
+        el("li", {}, el("b", {textContent: "u/" + ex.author + ": "}), ex.text))));
+    }
+    canvas._words = words;
+    attachCloudTip(canvas);
+    return card;
+  }
+  const cloudsEl = document.getElementById("clouds");
+  function drawClouds() {
+    cloudsEl.replaceChildren();
+    const t = topicById.get(selected);
+    if (!t) { cloudsEl.append(el("p", {className: "empty", textContent: "No topics found."})); return; }
+    cloudsEl.append(cloudCard(`Topic: ${t.label}`, `${fmt.format(t.size)} items across ${t.narratives.length} narrative(s)`, t.keywords, null, "topic-card", t.summary, t._auth));
+    for (const id of narrOrder(t)) {
+      const n = narrById.get(id);
+      const card = cloudCard(n.label, `Narrative ${n.id} · ${fmt.format(n.size)} items` + (HAS_UP ? ` · ${fmt.format(n.upvotes)} upvotes` : ""), n.keywords, n.examples, "", n.summary, n._auth, narrColor(t, n.id));
+      if (n.by_band) card.querySelector(".meta").after(...bandsBar(n.by_band));
+      card.addEventListener("mouseenter", () => setHovered(n.id, card));
+      card.addEventListener("mouseleave", () => setHovered(null, null));
+      cloudsEl.append(card);
+    }
+    redrawCanvases();
+  }
+  const LINE_COLORS = ["#2a78d6", "#eb6834", "#1b9e77", "#8e5cd9", "#c99a06", "#d6457a", "#3aa6b9", "#7a8b3a"];
+  const narrOrder = t => [...t.narratives].sort((a, b) => narrById.get(b).size - narrById.get(a).size);
+  const narrColor = (t, id) => LINE_COLORS[narrOrder(t).indexOf(id) % LINE_COLORS.length];
+  function bandsBar(by) {
+    const tot = bandTotal(by);
+    const bar = el("div", {className: "bands", tabIndex: 0});
+    bar.append(...BANDS.filter(k => by[k]).map(k => el("span", {style: `width:${100 * by[k] / tot}%;background:var(--${k})`})));
+    const parts = BANDS.filter(k => by[k]).map(k => `${pct(by[k], tot)}% ${BAND_LABEL[k]}`);
+    bar.dataset.tip = "Who this narrative's engagement (upvotes + 1 per comment) comes from, by the author's authenticity: " + parts.join(", ") + ".";
+    return [bar, el("div", {className: "band-txt", textContent: parts.join(" · ")})];
+  }
+  function redrawCanvases() { cloudsEl.querySelectorAll("canvas").forEach(c => layoutCloud(c, c._words)); }
+
+  // ------------------------------------------------------------- timeline
+  const tlEl = document.getElementById("timeline");
+  const BINS = [[300, "5 minutes"], [900, "15 minutes"], [1800, "30 minutes"], [3600, "hour"], [3 * 3600, "3 hours"], [6 * 3600, "6 hours"], [86400, "day"], [7 * 86400, "week"], [30 * 86400, "30 days"]];
+  function drawTimeline() {
+    const t = topicById.get(selected);
+    const idx = idxBy(i => inSub(i) && P.t[i] != null);
+    const note = document.getElementById("tl-note");
+    if (!window.Plotly || idx.length < 2) { tlEl.replaceChildren(el("p", {className: "empty", textContent: "No timestamps to plot."})); note.textContent = ""; return; }
+    // Auto-scale to where the selected topic's narratives are active: the shortest time window
+    // holding 90% of their comments (all comments if the topic has too few). A small block of
+    // much older comments would otherwise stretch the axis over months of zeros.
+    const focus = t ? idx.filter(i => t.narratives.includes(P.narrative[i])) : [];
+    const ts = (focus.length >= 5 ? focus : idx).map(i => P.t[i]).sort((a, b) => a - b);
+    const k = Math.max(1, Math.ceil(0.9 * ts.length) - 1);
+    let best = 0;
+    for (let j = 1; j + k < ts.length; j++) if (ts[j + k] - ts[j] < ts[best + k] - ts[best]) best = j;
+    let lo = ts[best], hi = ts[Math.min(best + k, ts.length - 1)];
+    const pad = (hi - lo) * 0.03; lo -= pad; hi += pad;
+    if (hi - lo < 3600) { const mid = (lo + hi) / 2; lo = mid - 1800; hi = mid + 1800; }
+    const outside = idx.filter(i => P.t[i] < lo || P.t[i] > hi).length;
+    const [bin, binName] = BINS.find(([b]) => (hi - lo) / b <= 72) || BINS[BINS.length - 1];
+    const start = Math.floor(lo / bin) * bin, nb = Math.floor((hi - start) / bin) + 1;
+    const xs = Array.from({length: nb}, (_, k) => new Date((start + k * bin) * 1000));
+    const count = pred => { const c = new Array(nb).fill(0); for (const i of idx) { const x = P.t[i]; if (x >= lo && x <= hi && pred(i)) c[Math.floor((x - start) / bin)]++; } return c; };
+    // the whole discussion goes on its own right-hand axis, so the (smaller) narrative lines
+    // use the full height of the left axis instead of hugging zero
+    const twoAxes = !!t;
+    const traces = [{type: "scatter", mode: "lines", name: sub ? `All in r/${sub}` : "Whole discussion", x: xs, y: count(() => true),
+      yaxis: twoAxes ? "y2" : "y", line: {color: css("--context"), width: 1.5}, fill: "tozeroy", fillcolor: "rgba(137,135,129,0.14)",
+      hovertemplate: "%{y}<extra>%{fullData.name}</extra>"}];
+    if (t) for (const id of narrOrder(t)) {
+      const n = narrById.get(id), y = count(i => P.narrative[i] === id);
+      if (!y.some(Boolean)) continue;
+      traces.push({type: "scatter", mode: "lines", name: n.label, x: xs, y,
+        line: {color: narrColor(t, id), width: hovered === id ? 3.5 : 1.8},
+        opacity: hovered === null || hovered === id ? 1 : 0.35, hovertemplate: "%{y}<extra>%{fullData.name}</extra>"});
+    }
+    Plotly.react(tlEl, traces, {
+      margin: {l: 48, r: 48, t: 8, b: 30}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: {color: css("--ink-2"), size: 11}, hovermode: "x unified",
+      xaxis: {type: "date", gridcolor: css("--grid"), linecolor: css("--grid"), range: [new Date(start * 1000), new Date((start + nb * bin) * 1000)]},
+      yaxis: {title: {text: twoAxes ? `narrative comments per ${binName}` : `comments per ${binName}`, font: {size: 11}}, gridcolor: css("--grid"), rangemode: "tozero", fixedrange: true},
+      yaxis2: {title: {text: `all comments per ${binName}`, font: {size: 11}}, overlaying: "y", side: "right", showgrid: false, rangemode: "tozero", fixedrange: true, visible: twoAxes},
+      legend: {orientation: "h", y: -0.18, font: {size: 11}},
+      hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}},
+    }, {responsive: true, displaylogo: false, modeBarButtonsToRemove: ["select2d", "lasso2d", "toImage", "autoScale2d"]});
+    document.getElementById("tl-sub").textContent = t ? `whole discussion and the narratives of “${t.label}”` : "";
+    note.textContent = (outside ? `Zoomed to ${new Date(lo * 1000).toLocaleString()} – ${new Date(hi * 1000).toLocaleString()}, where this topic is active; ${fmt.format(outside)} item(s) outside it aren't shown. ` : "") +
+      "Hover over a narrative card to highlight its line.";
+  }
+
+  // ------------------------------------------------------------- behaviour
+  function setHovered(id, card) {
+    hovered = id;
+    cloudsEl.querySelectorAll(".card.hot").forEach(c => c.classList.remove("hot"));
+    if (card) card.classList.add("hot");
+    if (window.Plotly) { Plotly.react(mapEl, traces(), layout(), plotConfig); drawTimeline(); }
+  }
+  function select(id) {
+    selected = id; hovered = null;
+    const t = topicById.get(id);
+    document.getElementById("sel-title").textContent = t ? t.label : "—";
+    document.getElementById("sel-sub").textContent = t ? `${fmt.format(sizes.get(t.id) || 0)} items${sub ? " in r/" + sub : ""} · ${t.narratives.length} narrative(s)` : "";
+    renderTopicList(document.getElementById("topic-search").value);
+    drawMap(); drawClouds(); drawTimeline();
+  }
+  document.getElementById("show-noise").addEventListener("change", e => { showNoise = e.target.checked; drawMap(); });
+  document.getElementById("zoom-topic").addEventListener("change", e => { zoomToTopic = e.target.checked; drawMap(); });
+  document.getElementById("size-up").addEventListener("change", e => { sizeByUp = HAS_UP && e.target.checked; drawMap(); });
+  document.getElementById("fade-auth").addEventListener("change", e => { fadeByAuth = HAS_AUTH && e.target.checked; drawMap(); });
+  // Tooltips for numbers and encodings ([data-tip]); hover, keyboard focus and tap.
+  function showTip(t, x, y) {
+    tip.textContent = t.dataset.tip; tip.hidden = false;
+    const r = tip.getBoundingClientRect();
+    tip.style.left = Math.max(8, Math.min(x + 12, innerWidth - r.width - 8)) + "px";
+    tip.style.top = (y + 16 + r.height > innerHeight ? y - r.height - 10 : y + 16) + "px";
+  }
+  document.addEventListener("mouseover", e => { const t = e.target.closest("[data-tip]"); if (t) showTip(t, e.clientX, e.clientY); });
+  document.addEventListener("mouseout", e => { if (e.target.closest("[data-tip]")) tip.hidden = true; });
+  document.addEventListener("focusin", e => { const t = e.target.closest("[data-tip]"); if (t) { const r = t.getBoundingClientRect(); showTip(t, r.left, r.bottom); } });
+  document.addEventListener("focusout", () => { tip.hidden = true; });
+
+  renderTiles();
+  select(selected);
+  if (window.Plotly) {
+    mapEl.on("plotly_click", ev => {
+      const i = ev.points[0] && ev.points[0].customdata;
+      if (i != null && P.topic[i] !== -1 && P.topic[i] !== selected) select(P.topic[i]);
+    });
+  }
+  // Re-theme on OS or viewer theme change; relayout clouds on resize.
+  const rerender = () => { drawMap(); redrawCanvases(); drawTimeline(); };
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
+  new MutationObserver(rerender).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(redrawCanvases, 150); });
+})();
+</script>
+</body>
+</html>

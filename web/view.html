@@ -245,6 +245,12 @@ button[data-tip],a[data-tip],.badge[data-tip]{cursor:pointer}
 .howto li{margin:6px 0}
 .howto code{background:var(--card-2);border-radius:4px;padding:0 4px;font-size:12px}
 .modal .closex{top:10px;right:12px}
+.nsum{font-size:12.5px;line-height:1.45;color:var(--text);opacity:.9;margin:4px 0 2px}
+.ai{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--link);margin-right:5px;vertical-align:1px}
+.mrow .msum{font-size:13.5px;line-height:1.5;margin:4px 0 8px 17px}
+a.post{color:inherit;text-decoration:none}
+a.post:hover{text-decoration:none}
+.gsum{font-size:13px;line-height:1.45;margin:6px 0 2px;color:var(--text);opacity:.9}
 </style>
 </head>
 <body>
@@ -441,7 +447,7 @@ function renderThread(id){
       ${c.kids.length?`<div class="children">${c.kids.map(node).join("")}</div>`:""}
     </div>`;
   };
-  const back = LIVE() ? `<a class="backlink" href="/">← Your analyses</a>` : `<a class="backlink" href="#">← Back to feed</a>`;
+  const back = EXAMPLE ? `<a class="backlink" href="/demo.html">← Demo feed</a>` : LIVE() ? `<a class="backlink" href="/">← Your analyses</a>` : `<a class="backlink" href="#">← Back to feed</a>`;
   const shown = LIVE()
     ? `Showing ${t.comments.length} comments captured${DATA.meta.reported_comments?` of ${DATA.meta.reported_comments}`:""} · ${Object.keys(P).length} most engaged commenters scored`
     : `Showing ${t.comments.length} comments from scored accounts`;
@@ -496,6 +502,7 @@ function narrativesCard(){
     const fl = n.flagged.length ? ` · <span style="color:var(--warn)"${tip("Accounts in this narrative labelled uncertain or suspicious: u/"+n.flagged.join(", u/"))}>${n.flagged.length} flagged</span>` : "";
     return `<li class="${on}"><button data-narr="${n.id}" aria-pressed="${!!on}">
       <div class="nl"><i class="sw" style="background:${ncolor(n.id)};margin-right:6px"></i>${esc(n.label)}</div>
+      ${n.summary?`<div class="nsum"><span class="ai"${tip(AI_TIP)}>AI summary</span>${esc(n.summary)}</div>`:""}
       <div class="bar"><span style="width:${Math.max(2,Math.round(n.weighted_share*100))}%;background:${ncolor(n.id)}"></span></div>
       <div class="nm"><span class="num"${tip(`Share of the thread's engagement: each comment counts log(1+upvotes) + ½·log(1+replies), so popular comments weigh more without one viral comment drowning out the rest. ${Math.round(n.share*100)}% of comments.`)}>${Math.round(n.weighted_share*100)}% of engagement</span> · ${n.n_comments} comments · ${sc}${fl}</div></button></li>`;
   }).join("");
@@ -535,12 +542,17 @@ function pillParts(){
   return parts;
 }
 const ncolor = id => (PARTS.find(x=>x.id===id && id!=null) || {color:OCOL}).color;
+const AI_TIP = "Written by an LLM (NVIDIA Nemotron) from this narrative's most representative comments. It describes what commenters argue; it isn't a fact-check.";
 const OTHERS_TIP = "Others = smaller narratives plus comments too short or off-topic to join one (jokes, one-word replies).";
-function pill(){
-  if(!PARTS.length) return "";
-  const pc = pcts(PARTS.map(x=>x.share));
-  const segs = PARTS.map((x,i)=>`<span style="flex:${x.share} 1 0;background:${x.color}"${tip(`${pc[i]}% · ${x.label}${x.id==null?". "+OTHERS_TIP:""}`)}></span>`).join("");
-  const leg = PARTS.map((x,i)=>`<span class="pl"><i style="background:${x.color}"></i><em>${esc(x.label)}</em><b>${pc[i]}%</b></span>`).join("");
+function pill(parts = PARTS, interactive = true){
+  if(!parts.length) return "";
+  const PARTS_ = parts;
+  const pc = pcts(parts.map(x=>x.share));
+  if(!interactive){
+    return `<div class="npill" style="cursor:inherit"><span class="npill-hd">🧭 Narrative distribution</span><span class="npill-bar">${parts.map((x,i)=>`<span style="flex:${x.share} 1 0;background:${x.color}"${tip(`${pc[i]}% · ${x.label}`)}></span>`).join("")}</span><span class="npill-leg">${parts.map((x,i)=>`<span class="pl"><i style="background:${x.color}"></i><em>${esc(x.label)}</em><b>${pc[i]}%</b></span>`).join("")}</span></div>`;
+  }
+  const segs = parts.map((x,i)=>`<span style="flex:${x.share} 1 0;background:${x.color}"${tip(`${pc[i]}% · ${x.label}${x.id==null?". "+OTHERS_TIP:""}`)}></span>`).join("");
+  const leg = PARTS_.map((x,i)=>`<span class="pl"><i style="background:${x.color}"></i><em>${esc(x.label)}</em><b>${pc[i]}%</b></span>`).join("");
   return `<button class="npill" type="button" data-pill aria-haspopup="dialog" aria-label="Narrative distribution: ${esc(PARTS.map((x,i)=>x.label+" "+pc[i]+"%").join(", "))}. Open the breakdown.">
     <span class="npill-hd">🧭 Narrative distribution <span class="how">How is this computed? ›</span></span>
     <span class="npill-bar">${segs}</span><span class="npill-leg">${leg}</span></button>`;
@@ -581,6 +593,7 @@ function openModal(){
     const kw = n && n.keywords.length ? ` · <span${tip("Words that set this narrative apart from the rest of the thread (c-TF-IDF).")}>${esc(n.keywords.slice(0,5).join(", "))}</span>` : "";
     return `<div class="mrow">
       <div class="mh"><i class="sw" style="background:${x.color}"></i><span>${esc(x.label)}</span><span class="share num"${tip(`${pc[i]}% of the thread's engagement`)}>${pc[i]}%</span></div>
+      ${n && n.summary ? `<div class="msum"><span class="ai"${tip(AI_TIP)}>AI summary</span>${esc(n.summary)}</div>` : ""}
       <div class="mm">${st.comments} comments · ${nAcc} accounts${kw}${x.id==null?`<br>${esc(OTHERS_TIP)}`:""}</div>
       <div class="ml">Who pushes it</div>
       <div class="cbar">${compBar(st.byAcc)}</div>
@@ -719,16 +732,55 @@ function resultTour(){ return [
   {title:"That's it", body:`<p>Scores are prompts to check sources, not proof of a bot. Open this tour again any time from <b>? Tutorial</b> in the top bar.</p>`, action: AID==="example" ? {label:"Analyze your own post →", href:"/"} : null},
 ];}
 function demoTour(){ return [
-  {title:"The demo feed", body:`<p>Threads we've already analysed, shown as a Reddit feed with Candor's authenticity layer on top. Every account here has been scored.</p>`},
-  {sel:".post .badge", title:"Authenticity badge", body:`<p>A 0–100 score for the account: ${B("ok","✓")} likely authentic (70+), ${B("warn","⚠")} uncertain (40–69), ${B("bad","⚠")} suspicious (below 40). The bars are the five criteria. Click it for the evidence.</p>`},
-  {sel:".post .thread-health", title:"Thread health", body:`<p>One dot per scored participant, coloured by their label, and how many are flagged.</p>`},
-  {sel:".sortbar", title:"Sort the feed", body:`<p><b>Most flagged</b> brings the threads with the most uncertain or suspicious participants to the top.</p>`},
-  {sel:"#shieldCard", title:"Authenticity Shield", body:`<p>How all scored accounts split by label, and the average score on each criterion.</p>`},
+  {title:"The demo feed", body:`<p>Real Reddit threads we've already analysed, with the same pipeline that runs when you paste a link.</p>`},
+  {sel:"a.post .npill", title:"Narrative distribution", body:`<p>What the thread argues about: its top narratives and their share of the engagement (upvotes and replies). Everything else is in <b>Others</b>.</p>`},
+  {sel:"a.post .gsum", title:"AI summary", body:`<p>An AI summary of the thread's biggest narrative.</p>`},
+  {sel:"a.post .thread-health", title:"Who's talking", body:`<p>How many of the most engaged commenters we scored, their average authenticity (0–100), and how many are flagged as uncertain or suspicious.</p>`},
+  {sel:"a.post", title:"Open a thread", body:`<p>Click a thread to see the full analysis: comments with authenticity badges, the narrative breakdown and the narrative map.</p>`},
   {title:"Try it live", body:`<p>Paste any Reddit thread on the Analyze tab: Candor maps its narratives and scores its most engaged commenters in 1–2 minutes.</p>`, action:{label:"Analyze a post →", href:"/"}},
 ];}
 
 /* ---------- live analyses: ?id=<analysis> ---------- */
 const AID = new URLSearchParams(location.search).get("id");
+const EXAMPLE = !!AID && (AID==="example" || /^ex-[A-Za-z0-9_-]+$/.test(AID));
+const GALLERY = /*__GALLERY__*/false;  // demo.html: a feed of the bundled analyses
+
+/* ---------- demo feed: web/examples/index.json (built by python -m candor.examples) ---------- */
+function agoFrom(iso, ref){
+  if(!iso) return "";
+  const s = (new Date(ref || Date.now()) - new Date(iso))/1000;
+  return s<3600 ? Math.max(1,Math.round(s/60))+"m ago" : s<86400 ? Math.round(s/3600)+"h ago" : s<86400*30 ? Math.round(s/86400)+"d ago" : s<86400*365 ? Math.round(s/86400/30)+"mo ago" : Math.round(s/86400/365)+"y ago";
+}
+async function renderGallery(){
+  document.body.classList.add("live");
+  document.title = "Demo · Candor";
+  document.getElementById("search").textContent = "🔍 Search the demo feed";
+  document.getElementById("disclaimer").textContent = "Candor analyses of public Reddit threads. Not affiliated with Reddit. Scores are prompts to check sources, not proof.";
+  const r = await fetch("examples/index.json").catch(()=>null);
+  const ex = r && r.ok ? await r.json() : [];
+  const card = e => {
+    const parts = (e.narratives||[]).map((x,i)=>({...x, color: x.id==null ? OCOL : NCOL[i] || OCOL}));
+    const lc = e.label_counts || {}, flagged = (lc.uncertain||0) + (lc.suspicious||0);
+    return `<a class="card post" href="view.html?id=ex-${encodeURIComponent(e.id)}">
+      <div class="votes"><span class="arr">▲</span><span>${fmt(e.score)}</span><span class="arr">▼</span></div>
+      <div class="post-main">
+        <div class="meta"><span class="sub">r/${esc(e.sub)}</span><span>•</span><span>${agoFrom(e.posted_at, e.scraped_at)}</span></div>
+        <h2>${esc(e.title)}</h2>
+        ${pill(parts, false)}
+        ${e.top_summary?`<div class="gsum"><span class="ai">AI summary</span>${esc(e.top_summary)}</div>`:""}
+        <div class="actions"><span>💬 ${e.num_comments ?? "?"} Comments</span>
+          <span class="thread-health"${tip(`${e.n_scored} of the most engaged commenters scored; average authenticity ${e.mean_score==null?"n/a":Math.round(e.mean_score)}/100.`)}>🛡️ ${e.n_scored} scored · avg ${e.mean_score==null?"n/a":Math.round(e.mean_score)}${flagged?` · <span style="color:var(--warn)">${flagged} flagged</span>`:""}</span>
+          <span style="color:var(--link)">Open analysis →</span></div>
+      </div></a>`;
+  };
+  document.getElementById("main").innerHTML = `<div class="card sortbar"><b>Demo feed</b><span style="margin-left:auto;font-size:12px;color:var(--muted)">${ex.length} threads analysed by Candor</span></div>` +
+    (ex.map(card).join("") || `<div class="card prog">The demo threads aren't available right now.</div>`);
+  document.getElementById("side").innerHTML = `<div class="card" id="aboutDemo"><div class="hd">🧭 About the demo</div><div class="bd">
+      <p>Real Reddit threads, analysed by the same pipeline you get when you paste a link on the Analyze tab.</p>
+      <p style="font-size:13px;color:var(--muted)">Each card shows the thread's <b>narrative distribution</b>: its top narratives' share of the engagement. Open a thread for the comments, every scored account's authenticity badge, the narrative breakdown and the narrative map.</p>
+      <p style="margin:0"><a href="/">Analyze your own post →</a></p></div></div>`;
+  if(window.CandorTour) CandorTour.setup({key:"candor_tour_demo", steps:demoTour});
+}
 const DANCER = `<div class="dance" aria-hidden="true">
   <svg class="dancer" viewBox="0 0 120 150">
     <ellipse cx="60" cy="144" rx="30" ry="4" fill="currentColor" opacity=".12"/>
@@ -785,8 +837,8 @@ async function retryAnalysis(url){
   else document.querySelector(".prog")?.insertAdjacentHTML("beforeend", `<div class="msg err">${esc(j.detail || "Could not start the analysis")}</div>`);
 }
 async function poll(){
-  if(AID==="example"){  // bundled example for the tutorial: web/example/
-    const v = await fetch("example/view.json").catch(()=>null);
+  if(EXAMPLE){  // bundled analyses: web/example/ (tutorial) and web/examples/<name>/ (demo feed)
+    const v = await fetch(AID==="example" ? "example/view.json" : `examples/${encodeURIComponent(AID.slice(3))}/view.json`).catch(()=>null);
     if(v && v.ok){ boot(await v.json()); return; }
     progressView({status:"error", error:"The example analysis isn't available."}); return;
   }
@@ -804,10 +856,11 @@ async function poll(){
 }
 document.querySelectorAll(".candor-nav .tabs a").forEach(a=>{
   const href = a.getAttribute("href");
-  if(href===location.pathname || (AID && href==="/")) a.setAttribute("aria-current","page");
+  if(href===location.pathname || (EXAMPLE && AID!=="example" && href==="/demo.html") || (AID && !EXAMPLE && href==="/")) a.setAttribute("aria-current","page");
 });
 if(AID) document.getElementById("disclaimer").textContent = "Candor analysis of a public Reddit thread. Not affiliated with Reddit. Scores are prompts to check sources, not proof.";
-if(DATA) boot(DATA);
+if(GALLERY) renderGallery();
+else if(DATA) boot(DATA);
 else if(AID) poll();
 else progressView({status:"error", error:"No analysis selected. Start one from the Analyze tab."});
 </script>

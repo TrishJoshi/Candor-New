@@ -43,6 +43,19 @@ def rebuild_map(analysis_id: str) -> None:
         if add_summaries(result, default_labeler()):
             store.write_json(analysis_id, "stage2.json", result.model_dump())
     live.write_map(analysis_id, post, result, embeddings, cfg, scores, model)
+    _sync_view_summaries(analysis_id, result)
+
+
+def _sync_view_summaries(analysis_id: str, result: ProcessingResult) -> None:
+    """Copy narrative summaries into view.json (the Reddit view shows them)."""
+    p = store.run_dir(analysis_id) / "view.json"
+    if not p.exists():
+        return
+    view = json.loads(p.read_text(encoding="utf-8"))
+    by_id = {n.narrative_id: n.summary for n in result.narratives}
+    for n in view.get("narratives") or []:
+        n["summary"] = by_id.get(n["id"])
+    store.write_json(analysis_id, "view.json", view)
 
 
 def main(argv: list[str]) -> None:

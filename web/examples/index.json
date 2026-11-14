@@ -1,0 +1,205 @@
+[
+ {
+  "id": "f7f3ee8747eb0ec2",
+  "sub": "Damnthatsinteresting",
+  "title": "A man trying to get his old job back 2,700 years ago complained about three unanswered letters. The letter containing his complaint was found unopened.",
+  "score": 28460,
+  "num_comments": 543,
+  "posted_at": "2026-11-13T21:44:36.060000+00:00",
+  "scraped_at": "2026-11-14T20:08:19.411590+00:00",
+  "n_scored": 20,
+  "mean_score": 95.7,
+  "label_counts": {
+   "likely_authentic": 20
+  },
+  "narratives": [
+   {
+    "id": 1,
+    "label": "Clay envelopes protected messages",
+    "share": 0.512
+   },
+   {
+    "id": 0,
+    "label": "Job market always bad",
+    "share": 0.46
+   },
+   {
+    "id": null,
+    "label": "Others",
+    "share": 0.028
+   }
+  ],
+  "top_summary": "Commenters explain that ancient messages were written on tablets enclosed in separate clay shells, which had to be broken to read the contents, and they discuss the significance of one such letter remaining unopened until modern examination."
+ },
+ {
+  "id": "435db701fe5f66dd",
+  "sub": "trump",
+  "title": "You’re not alone",
+  "score": 6980,
+  "num_comments": 4950,
+  "posted_at": "2020-06-16T02:29:13.551000+00:00",
+  "scraped_at": "2026-11-14T20:12:06.507426+00:00",
+  "n_scored": 20,
+  "mean_score": 87.0,
+  "label_counts": {
+   "likely_authentic": 13,
+   "suspicious": 7
+  },
+  "narratives": [
+   {
+    "id": 0,
+    "label": "Persecution complex",
+    "share": 0.425
+   },
+   {
+    "id": 1,
+    "label": "Support Trump 2020",
+    "share": 0.341
+   },
+   {
+    "id": null,
+    "label": "Others",
+    "share": 0.234
+   }
+  ],
+  "top_summary": "Commenters argue that Trump supporters face censorship, social exclusion, and unfair labeling from liberals, media, and online platforms, leading them to feel isolated and persecuted for their political beliefs."
+ },
+ {
+  "id": "177707a7d47f751a",
+  "sub": "technology",
+  "title": "Chicago schools tell Google they'd rather lose Search than be forced to accept AI",
+  "score": 38969,
+  "num_comments": 1132,
+  "posted_at": "2026-11-12T14:32:53.460000+00:00",
+  "scraped_at": "2026-11-14T18:48:19.703429+00:00",
+  "n_scored": 20,
+  "mean_score": 94.6,
+  "label_counts": {
+   "likely_authentic": 20
+  },
+  "narratives": [
+   {
+    "id": 0,
+    "label": "Reject Google's school dominance",
+    "share": 0.488
+   },
+   {
+    "id": 1,
+    "label": "Google search is declining",
+    "share": 0.332
+   },
+   {
+    "id": null,
+    "label": "Others",
+    "share": 0.18
+   }
+  ],
+  "top_summary": "Commenters argue that schools should reduce reliance on Google due to concerns over corporate data harvesting, AI training using student information, and the creation of permanent student profiles. They suggest alternatives like other search engines, paper-based methods, or rejecting specific tools to protect student privacy and autonomy."
+ },
+ {
+  "id": "545ee07380f17266",
+  "sub": "politics",
+  "title": "Trump's transportation chief demands $50 billion to prevent another huge FAA fiasco",
+  "score": 9811,
+  "num_comments": 1392,
+  "posted_at": "2026-11-14T02:41:55.386000+00:00",
+  "scraped_at": "2026-11-14T18:30:42.115938+00:00",
+  "n_scored": 20,
+  "mean_score": 92.5,
+  "label_counts": {
+   "likely_authentic": 20
+  },
+  "narratives": [
+   {
+    "id": 1,
+    "label": "Government incompetence, not funding",
+    "share": 0.602
+   },
+   {
+    "id": 0,
+    "label": "Suspicious funding motives",
+    "share": 0.267
+   },
+   {
+    "id": null,
+    "label": "Others",
+    "share": 0.132
+   }
+  ],
+  "top_summary": "Commenters argue that additional funding will not resolve the issue because the root cause is governmental mismanagement and incompetence rather than a lack of resources. They suggest that officials may have intentionally failed or sabotaged systems to justify requesting more taxpayer money."
+ },
+ {
+  "id": "4e107e45658b4c52",
+  "sub": "AskReddit",
+  "title": "You're on death row, your grandma has to play and clear a game without dying/game over fail state to spring you, what game are you choosing for her?",
+  "score": 5,
+  "num_comments": 31,
+  "posted_at": "2026-11-14T13:18:44.323000+00:00",
+  "scraped_at": "2026-11-14T19:42:17.742660+00:00",
+  "n_scored": 20,
+  "mean_score": 93.8,
+  "label_counts": {
+   "likely_authentic": 20
+  },
+  "narratives": [
+   {
+    "id": 0,
+    "label": "High-risk games",
+    "share": 0.431
+   },
+   {
+    "id": 1,
+    "label": "Grandma gaming skills",
+    "share": 0.206
+   },
+   {
+    "id": 2,
+    "label": "Euthanasia is justified",
+    "share": 0.139
+   },
+   {
+    "id": null,
+    "label": "Others",
+    "share": 0.224
+   }
+  ],
+  "top_summary": "Commenters identify high-risk games as those featuring significant fail-states or game-over conditions, arguing that the possibility of failure defines the risk. They cite various titles as examples of this dangerous gameplay dynamic."
+ },
+ {
+  "id": "0ac688925da4db1a",
+  "sub": "technology",
+  "title": "A network crash grounded every flight in the US, only the third time in history",
+  "score": 306,
+  "num_comments": 47,
+  "posted_at": "2026-11-14T12:32:11.766000+00:00",
+  "scraped_at": "2026-11-14T18:36:16.252784+00:00",
+  "n_scored": 20,
+  "mean_score": 93.2,
+  "label_counts": {
+   "likely_authentic": 20
+  },
+  "narratives": [
+   {
+    "id": 2,
+    "label": "Legacy systems are reliable",
+    "share": 0.541
+   },
+   {
+    "id": 0,
+    "label": "Legacy systems offer security",
+    "share": 0.25
+   },
+   {
+    "id": 1,
+    "label": "Political corruption grift",
+    "share": 0.142
+   },
+   {
+    "id": null,
+    "label": "Others",
+    "share": 0.067
+   }
+  ],
+  "top_summary": "Commenters argue that legacy aviation systems are dependable because they rarely fail and incorporate redundant designs, noting that recent disruptions were isolated rather than total network collapses. They suggest this proven stability supports an \"if it ain't broke\" approach, even as replacements are planned."
+ }
+]
