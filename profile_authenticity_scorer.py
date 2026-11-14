@@ -27,8 +27,14 @@ with the distribution across all scored accounts, as the criteria table asks.
 
 Every penalty lives in SCORING_TABLE / THRESHOLDS — tune there.
 
-Usage:
-    python profile_authenticity_scorer.py [reddit_accounts.json] [profile_scores.json]
+Two modes:
+    Offline (dataset 2): cohort percentiles come from the scored accounts themselves and the
+        "single issue" topic is NARRATIVE_KEYWORDS (Finnish data-centre narrative).
+            python profile_authenticity_scorer.py [reddit_accounts.json] [profile_scores.json]
+    Live (one analysed thread, candor/scoring.py): score_live() takes the thread's own topic
+        keywords and a frozen reference cohort (reference/cohort_dataset2.json), because ~20
+        commenters are too few for percentiles and the data-centre keywords don't apply.
+        Rebuild the reference with:  python profile_authenticity_scorer.py --export-cohort
 """
 from __future__ import annotations
 
@@ -42,8 +48,9 @@ from pathlib import Path
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Narrative keywords for C5 "single issue". Deliberately narrower than dataset 1's search
-# keywords: "google" alone matched any mention of Google search, Android, etc.
+# Narrative keywords for C5 "single issue" in OFFLINE mode (dataset 2's data-centre narrative).
+# Deliberately narrower than dataset 1's search keywords: "google" alone matched any mention of
+# Google search, Android, etc. Live mode passes the analysed thread's own keywords instead.
 NARRATIVE_KEYWORDS = ["hamina", "muhos", "kajaani", "datakeskus", "data center", "data centre",
                       "datacenter", "palvelinkeskus", "konesali"]
 
@@ -66,7 +73,7 @@ SCORING_TABLE = {
     "age_lt_30d":              {"c": "C1", "points": 45, "why": "Account is less than 30 days old"},
     "age_lt_180d":             {"c": "C1", "points": 25, "why": "Account is less than 6 months old"},
     "karma_very_low":          {"c": "C1", "points": 20, "why": "Total karma under 100 — little track record"},
-    "karma_below_cohort":      {"c": "C1", "points": 10, "why": "Karma in the bottom 10% of the commenters on this narrative"},
+    "karma_below_cohort":      {"c": "C1", "points": 10, "why": "Karma in the bottom 10% of the comparison cohort"},
     "no_verified_email":       {"c": "C1", "points": 15, "why": "Email not verified"},
     "default_avatar":          {"c": "C1", "points": 10, "why": "Stock default avatar (Reddit's 'no photo')"},
     "default_username":        {"c": "C1", "points": 10, "why": "Auto-suggested Word_Word_1234 username, typical of throwaway / bulk-created accounts"},
@@ -108,6 +115,7 @@ THRESHOLDS = {
     "min_comments_for_history": 10,   # fewer than this -> C5 unassessed
     "no_sleep_min_share": 0.12,       # quietest 6h window still holds >= 12% of activity (uniform = 25%)
 }
+REFERENCE_COHORT_PATH = Path(__file__).resolve().parent / "reference" / "cohort_dataset2.json"
 UNASSESSED_PCT = 90                   # neutral-ish score for criteria we can't measure
 # A weighted average hides one collapsed criterion (C5 at 0% only costs 10 points), so any
 # assessed criterion at or below this caps the label at "uncertain". The score is unchanged.
@@ -154,7 +162,7 @@ def label_for(score: float) -> str:
 # --------------------------------------------------------------------------------------
 # corpus: every text we have per author (history + their dataset-1 narrative comments)
 # --------------------------------------------------------------------------------------
-def build_corpus(accounts: dict, ds1_path: Path, extra_seeds: list | None = None,
+def build_corpus(accounts: dict, ds1_path: Path | None, extra_seeds: list | None = None,
                  extra_seed_threads: list | None = None) -> tuple[list[dict], set[str]]:
     docs, seen = [], set()
 
@@ -175,7 +183,7 @@ def build_corpus(accounts: dict, ds1_path: Path, extra_seeds: list | None = None
             add(name, p.get("id"), f"{p.get('title') or ''}\n{p.get('body') or ''}", p.get("posted_at"), p.get("score"))
 
     seed_threads = set()
-    if ds1_path.exists():
+    if ds1_path is not None and ds1_path.exists():
         for line in ds1_path.read_text(encoding="utf-8").splitlines():
             r = json.loads(line)
             if r.get("source_domain") != "reddit.com" or not r.get("author"):
@@ -313,8 +321,8 @@ def c5_signals(name: str, a: dict, ctx: dict) -> tuple[list[str], bool, dict]:
     texts = [(i.get("body") or "") + " " + (i.get("title") or "") + " " + ((i.get("post") or {}).get("title") or "")
              for i in items]
     share, topic_threads = None, set()
-    if ctx["has_narrative"]:  # single-issue checks only make sense when the cohort shares a topic
-        on_topic = [any(k in t.lower() for k in NARRATIVE_KEYWORDS) for t in texts]
+    if ctx["topic"] is not None:  # single-issue checks only make sense when the cohort shares a topic
+        on_topic = [ctx["topic"].matches(t) for t in texts]
         share = sum(on_topic) / len(items)
         fired += ["single_issue_strong"] if share >= 0.3 else ["single_issue"] if share >= 0.1 else []
         topic_threads = {((i.get("post") or {}).get("id") or i.get("id")) for i, hit in zip(items, on_topic) if hit}
@@ -333,13 +341,55 @@ def c5_signals(name: str, a: dict, ctx: dict) -> tuple[list[str], bool, dict]:
         if quietest >= THRESHOLDS["no_sleep_min_share"]:
             fired.append("no_sleep_pattern")
     return fired, True, {"share_on_topic": round(share, 3) if share is not None else None, "topic_threads": len(topic_threads),
-                         "distinct_subreddits": len(subs)}
+                         "distinct_subreddits": len(subs),
+                         "topic_keywords": ctx["topic"].keywords[:10] if ctx["topic"] is not None else []}
 
 
 # --------------------------------------------------------------------------------------
 # cross-account context (computed once for the whole cohort)
 # --------------------------------------------------------------------------------------
-def build_context(accounts: dict, ds1_path: Path, data: dict | None = None) -> dict:
+class TopicMatcher:
+    """Is a text about the narrative topic? A text matches when it contains at least
+    ``min_hits`` distinct keywords (whole words / phrases, case-insensitive).
+
+    Offline mode uses the hand-picked, very specific NARRATIVE_KEYWORDS with min_hits=1.
+    Live mode uses keywords derived from the thread (broader terms), so it requires 2 hits:
+    one generic word like "senate" shouldn't make an unrelated comment count as on-topic.
+    """
+
+    def __init__(self, keywords: list[str], min_hits: int = 1, substring: bool = False) -> None:
+        self.keywords = [k.lower() for k in keywords if k.strip()]
+        self.min_hits = min_hits
+        self.substring = substring  # offline: legacy substring match ("datakeskus" in "datakeskuksen")
+        self._patterns = [re.compile(r"\b" + re.escape(k) + r"\b") for k in self.keywords]
+
+    def matches(self, text: str) -> bool:
+        t = (text or "").lower()
+        if self.substring:
+            hits = sum(k in t for k in self.keywords)
+        else:
+            hits = sum(bool(p.search(t)) for p in self._patterns)
+        return hits >= self.min_hits
+
+
+def cohort_stats(accounts: dict, now: float) -> dict:
+    """Percentile reference for C1 (karma) and C4 (karma velocity, comment score p90)."""
+    ok = [a for a in accounts.values() if a["fetch_status"] == "ok"]
+    karma = [a["user"].get("total_karma") or 0 for a in ok]
+    kpd = [(a["user"].get("total_karma") or 0) / max(1.0, (now - ts(a["user"]["created_at"])) / 86400)
+           for a in ok if a["user"].get("created_at")]
+    scores = [c.get("score") or 0 for a in ok for c in a.get("comments") or []]
+    return {"karma": karma, "karma_per_day": kpd,
+            "comment_score_p90": float(np.percentile(scores, 90)) if scores else 0.0}
+
+
+def load_reference_cohort(path: Path = REFERENCE_COHORT_PATH) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))["cohort"]
+
+
+def build_context(accounts: dict, ds1_path: Path | None, data: dict | None = None, *,
+                  topic: TopicMatcher | None = None, cohort: dict | None = None) -> dict:
+    """Cross-account context. ``topic``/``cohort`` override the offline defaults (live mode)."""
     data = data or {}
     meta = data.get("scrape_meta") or {}
     docs, seed_threads = build_corpus(accounts, ds1_path, data.get("seed_comments"), meta.get("seed_threads"))
@@ -394,11 +444,8 @@ def build_context(accounts: dict, ds1_path: Path, data: dict | None = None) -> d
             tag_accounts[t.lower()].add(d["author"])
 
     now = datetime.now(timezone.utc).timestamp()
-    ok = [a for a in accounts.values() if a["fetch_status"] == "ok"]
-    karma = [a["user"].get("total_karma") or 0 for a in ok]
-    kpd = [(a["user"].get("total_karma") or 0) / max(1.0, (now - ts(a["user"]["created_at"])) / 86400)
-           for a in ok if a["user"].get("created_at")]
-    scores = [c.get("score") or 0 for a in ok for c in a.get("comments") or []]
+    if topic is None and meta.get("narrative_topic"):
+        topic = TopicMatcher(NARRATIVE_KEYWORDS, min_hits=1, substring=True)
     return {
         "docs": docs, "docs_by_author": by_author,
         "copied_from_others": copied_from_others, "copy_partners": copy_partners,
@@ -406,10 +453,9 @@ def build_context(accounts: dict, ds1_path: Path, data: dict | None = None) -> d
         "co_timed": co_timed,
         "urls_by_author": urls_by_author, "url_accounts": url_accounts,
         "tags_by_author": tags_by_author, "tag_accounts": tag_accounts,
-        "cohort": {"karma": karma, "karma_per_day": kpd,
-                   "comment_score_p90": float(np.percentile(scores, 90)) if scores else 0.0},
+        "cohort": cohort if cohort is not None else cohort_stats(accounts, now),
         "now": now,
-        "has_narrative": bool(meta.get("narrative_topic")),
+        "topic": topic,
     }
 
 
@@ -459,10 +505,32 @@ def score_profile(name: str, a: dict, ctx: dict) -> dict:
 
 
 def score_accounts(path: Path, ds1_path: Path = Path("data/dataset1/dataset1.jsonl")) -> dict:
+    """Offline mode: score every account in a dataset-2 style file."""
     data = json.loads(path.read_text(encoding="utf-8"))
     accounts = data["accounts"]
     ctx = build_context(accounts, ds1_path, data)
-    profiles = [score_profile(n, a, ctx) for n, a in accounts.items()]
+    return _summarise([score_profile(n, a, ctx) for n, a in accounts.items()])
+
+
+def score_live(accounts: dict, seed_comments: list[dict], seed_thread: str,
+               topic_keywords: list[str], cohort: dict | None = None) -> dict:
+    """Live mode: score the commenters of one analysed thread.
+
+    accounts:        {username: account} as built by scrape_reddit_profiles.assemble()/candor.scoring
+    seed_comments:   the thread's comments [{author, thread, text, posted_at}] - compared for
+                     copy-paste between commenters, and their thread excluded from co-timing
+    seed_thread:     the thread id (without t3_)
+    topic_keywords:  terms that describe the thread's topic (C5 single-issue check)
+    cohort:          percentile reference; default = frozen dataset-2 reference cohort
+    """
+    data = {"seed_comments": seed_comments, "scrape_meta": {"seed_threads": [seed_thread]}}
+    ctx = build_context(accounts, None, data,
+                        topic=TopicMatcher(topic_keywords, min_hits=2) if topic_keywords else None,
+                        cohort=cohort if cohort is not None else load_reference_cohort())
+    return _summarise([score_profile(n, a, ctx) for n, a in accounts.items()])
+
+
+def _summarise(profiles: list[dict]) -> dict:
     scored = [p for p in profiles if p["authenticity_score"] is not None]
     summary = {
         "profiles": len(profiles),
@@ -479,7 +547,28 @@ def score_accounts(path: Path, ds1_path: Path = Path("data/dataset1/dataset1.jso
             "profiles": sorted(profiles, key=lambda p: (p["authenticity_score"] is None, p["authenticity_score"] or 0))}
 
 
+def export_reference_cohort(src: Path = Path("data/dataset2/reddit_accounts.json"),
+                            dst: Path = REFERENCE_COHORT_PATH) -> None:
+    """Freeze dataset 2's cohort percentiles for live scoring (committed, so the server needs no data/)."""
+    accounts = json.loads(src.read_text(encoding="utf-8"))["accounts"]
+    now = datetime.now(timezone.utc).timestamp()
+    stats = cohort_stats(accounts, now)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(json.dumps({
+        "source": str(src), "built_at": datetime.now(timezone.utc).isoformat(),
+        "n_accounts": len(stats["karma"]),
+        "note": "Reference distribution for live scoring: Reddit commenters from dataset 2 "
+                "(Finnish data-centre threads + sampled subreddits). karma_per_day as of built_at.",
+        "cohort": {"karma": sorted(stats["karma"]), "karma_per_day": sorted(round(x, 3) for x in stats["karma_per_day"]),
+                   "comment_score_p90": stats["comment_score_p90"]},
+    }, indent=1), encoding="utf-8")
+    print(f"wrote {dst} ({len(stats['karma'])} accounts, comment score p90 {stats['comment_score_p90']})")
+
+
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--export-cohort"]:
+        export_reference_cohort()
+        sys.exit()
     src = Path(sys.argv[1] if len(sys.argv) > 1 else "data/dataset2/reddit_accounts.json")
     dst = Path(sys.argv[2] if len(sys.argv) > 2 else "data/dataset2/profile_scores.json")
     result = score_accounts(src)
