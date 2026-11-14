@@ -80,6 +80,8 @@ python -m venv .venv && .venv/bin/pip install -r requirements.txt
 Locally, FastAPI also serves `web/`, so you don't need nginx. The live pipeline loads both `.env` files itself.
 
 - Run the pipeline without the web app: `python -m candor.live <reddit_url>` (prints the `view.html?id=` to open).
+- Dashboard map with author scores: `python -m candor.dashboard all` (scrapes and scores all 3,514 authors, ~1 credit each, then builds `data/dashboard/narrative-map.html`, which `GET /api/dashboard/map` serves ahead of the committed `web/dashboard/narrative-map.html`). `summarize` writes AI summaries; `build` refreshes the committed fallback. Inputs live in `data/dashboard/` (not in git).
+- The "Highlight inauthentic" layer on the map is one block in `narrative-buckets/candor/visualize.py` (search `INAUTH`); revert commit `c60205e` to remove it.
 - Rebuild stored narrative maps after changing the map: `python -m candor.rebuild --all` (or `<id> ...`). Runs from before `embeddings.npy` was stored are re-embedded once with Gemini; no context.dev credits.
 - Tests: `python -m pytest` (app, offline) and `cd narrative-buckets && python -m pytest` (Stage 2 engine).
 
