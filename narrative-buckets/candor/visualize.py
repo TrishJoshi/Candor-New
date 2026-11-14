@@ -412,6 +412,9 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
             <label id="enc-up" hidden data-tip="Bigger dot = more upvotes (square-root scale, so a few viral comments don't swamp the map)."><input type="checkbox" id="size-up" checked> Size = upvotes</label>
             <label id="enc-auth" hidden data-tip="Each dot fades with its author's authenticity score: solid at 90+, about half at 55, faint below 30. Hollow rings are authors we didn't score (only a thread's most engaged commenters are scored)."><input type="checkbox" id="fade-auth" checked>
               Opacity = author authenticity <span class="fade" aria-hidden="true"><i style="background:var(--series-1);opacity:1"></i><i style="background:var(--series-1);opacity:.55"></i><i style="background:var(--series-1);opacity:.2"></i></span>high → low · <span class="ring" aria-hidden="true"></span>not scored</label>
+            <!-- INAUTH hook (highlight inauthentic) -->
+            <label id="enc-inauth" hidden data-tip="Red dots = comments by accounts scored suspicious, amber = uncertain, drawn on top. A red halo marks each narrative where a large share of the scored engagement comes from such accounts: the stronger the halo, the larger that share."><input type="checkbox" id="hl-inauth" checked>
+              Highlight inauthentic <span class="fade" aria-hidden="true"><i style="background:var(--bad)"></i><i style="background:var(--warn)"></i></span></label>
           </div>
         </div>
         <div id="map" role="img" aria-label="2D map of all comments, coloured by the selected topic"></div>
@@ -609,6 +612,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
       mk(other, "other", css("--context"), 4.5, 0.75),
       mk(sel, "selected", css("--series-1"), 7, 0.9),
       mk(hot, "hovered", css("--series-2"), 8, 1),
+      ...INAUTH.trace(),  // INAUTH hook
     ];
   }
   // View framing uses Tukey fences (IQR-based) so far-off UMAP islands, e.g.
@@ -633,6 +637,63 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   }
   const MAX_MAP_LABELS = 6;  // more than this piles up; the cards list every narrative
 
+  // ==== INAUTHENTIC HIGHLIGHT ===========================================================
+  // Self-contained: to revert, delete this block, the <label id="enc-inauth"> after the
+  // "INAUTH hook" HTML comment, and the two JS lines marked "INAUTH hook".
+  // Comments by uncertain/suspicious accounts are drawn on top in amber/red, and every
+  // narrative gets a red halo whose strength grows with its inauthentic share of engagement,
+  // so narratives that lean on inauthentic accounts stand out anywhere on the map.
+  const INAUTH = (() => {
+    const available = HAS_AUTH;
+    let on = available;
+    const MIN_SHARE = 0.05, MAX_HALOS_LABELLED = 6;
+    if (available) {
+      document.getElementById("enc-inauth").hidden = false;
+      // fading low-scoring dots would hide exactly what this layer shows
+      fadeByAuth = false; document.getElementById("fade-auth").checked = false;
+      document.getElementById("hl-inauth").addEventListener("change", e => { on = e.target.checked; drawMap(); });
+    }
+    const halos = available ? DATA.narratives.map(n => {
+      const idx = idxBy(i => P.narrative[i] === n.id);
+      const a = authOf(idx);
+      if (a.n < MIN_SCORED || !(a.inauth >= MIN_SHARE)) return null;
+      const d = idx.map(i => Math.hypot(P.x[i] - n.center[0], P.y[i] - n.center[1])).sort((p, q) => p - q);
+      return {n, share: a.inauth, r: Math.max(0.15, 1.2 * d[Math.floor(d.length / 2)])};
+    }).filter(Boolean).sort((p, q) => q.share - p.share) : [];
+    const pts = available ? idxBy(i => P.band[i] === "warn" || P.band[i] === "bad") : [];
+    return {
+      trace() {  // drawn last, on top of the topic layers
+        if (!on) return [];
+        const idx = pts.filter(i => inSub(i) && (showNoise || P.narrative[i] !== -1));
+        return [{
+          type: "scattergl", mode: "markers", name: "inauthentic", x: pick(P.x, idx), y: pick(P.y, idx),
+          text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
+          marker: {color: idx.map(i => P.band[i] === "bad" ? css("--bad") : css("--warn")),
+            size: idx.map(i => (sizeByUp ? 7 * (0.65 + 2.35 * upR[i]) : 7) + 2), opacity: 0.95,
+            line: {width: 1, color: css("--surface")}},
+        }];
+      },
+      shapes() {
+        if (!on) return [];
+        return halos.map(h => ({
+          type: "circle", layer: "below", xref: "x", yref: "y",
+          x0: h.n.center[0] - h.r, x1: h.n.center[0] + h.r, y0: h.n.center[1] - h.r, y1: h.n.center[1] + h.r,
+          fillcolor: css("--bad"), opacity: Math.min(0.35, 0.06 + 0.45 * h.share),
+          line: {color: css("--bad"), width: h.share >= 0.25 ? 2 : 1},
+        }));
+      },
+      annotations() {
+        if (!on) return [];
+        return halos.slice(0, MAX_HALOS_LABELLED).map(h => ({
+          x: h.n.center[0], y: h.n.center[1] + h.r, yanchor: "bottom", showarrow: false,
+          text: `⚠ ${esc(h.n.label)} · ${pct(h.share, 1)}% inauthentic`,
+          font: {size: 11, color: "#fff"}, bgcolor: css("--bad"), borderpad: 3, opacity: 0.92,
+        }));
+      },
+    };
+  })();
+  // ==== end INAUTHENTIC HIGHLIGHT ========================================================
+
   function layout() {
     const t = topicById.get(selected);
     const labelled = (t ? [...t.narratives] : [])
@@ -648,7 +709,8 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
     return {
       margin: {l: 8, r: 8, t: 8, b: 8}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
       xaxis: {visible: false, range: viewRanges()[0]}, yaxis: {visible: false, range: viewRanges()[1]},
-      showlegend: false, hovermode: "closest", dragmode: "pan", annotations,
+      showlegend: false, hovermode: "closest", dragmode: "pan",
+      annotations: [...annotations, ...INAUTH.annotations()], shapes: INAUTH.shapes(),  // INAUTH hook
       hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}, align: "left"},
       // Keep the user's pan/zoom across hovers; reframe on topic or zoom-mode change.
       uirevision: zoomToTopic ? "topic-" + selected : "all",
