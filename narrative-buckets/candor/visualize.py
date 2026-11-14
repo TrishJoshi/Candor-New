@@ -650,7 +650,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   const INAUTH = (() => {
     const available = HAS_AUTH;
     let on = available;
-    const MIN_SHARE = 0.05, MAX_HALOS_LABELLED = 6;
+    const MIN_SHARE = 0.05, LABEL_SHARE = 0.15, MAX_HALOS_LABELLED = 4;
     const box = document.getElementById("enc-inauth");
     box.hidden = false; document.getElementById("enc").classList.add("on");
     if (!available) {  // no author scores in this map (yet): show the control, explain why it's off
@@ -694,7 +694,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
       },
       annotations() {
         if (!on) return [];
-        return halos.slice(0, MAX_HALOS_LABELLED).map(h => ({
+        return halos.filter(h => h.share >= LABEL_SHARE).slice(0, MAX_HALOS_LABELLED).map(h => ({
           x: h.n.center[0], y: h.n.center[1] + h.r, yanchor: "bottom", showarrow: false,
           text: `⚠ ${esc(h.n.label)} · ${pct(h.share, 1)}% inauthentic`,
           font: {size: 11, color: "#fff"}, bgcolor: css("--bad"), borderpad: 3, opacity: 0.92,
