@@ -4,6 +4,7 @@ POST /api/analyze {"url"}         -> {"id"}       start (or join) an analysis of
 GET  /api/analyses/{id}           -> status, progress, message, error, summary
 GET  /api/analyses/{id}/view      -> Reddit-mockup data (web/view.html renders it)
 GET  /api/analyses/{id}/map       -> interactive narrative map (HTML)
+GET  /api/dashboard/map           -> Dashboard narrative map (server-built copy with scores, else web/)
 GET  /api/history                 -> this visitor's past analyses (cookie ``candor_vid``)
 GET  /api/health                  -> {"ok": true}
 
@@ -166,6 +167,17 @@ def get_map(analysis_id: str) -> FileResponse:
     if p is None:
         raise HTTPException(404, "Not ready")
     return FileResponse(p, media_type="text/html")
+
+
+@app.get("/api/dashboard/map")
+def get_dashboard_map() -> FileResponse:
+    """The Dashboard's narrative map: the server-built copy (python -m candor.dashboard build-data,
+    with author scores) when present, else the committed one in web/."""
+    root = Path(__file__).resolve().parent.parent
+    for p in (store.DATA / "dashboard" / "narrative-map.html", root / "web" / "dashboard" / "narrative-map.html"):
+        if p.exists():
+            return FileResponse(p, media_type="text/html")
+    raise HTTPException(404, "No dashboard map")
 
 
 @app.get("/api/history")

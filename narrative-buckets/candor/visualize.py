@@ -569,7 +569,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   subSel.addEventListener("change", () => {
     sub = subSel.value; sizes = topicSize(); renderTiles();
     const first = DATA.topics.filter(t => sizes.get(t.id)).sort((a, b) => sizes.get(b.id) - sizes.get(a.id))[0];
-    select(sizes.get(selected) ? selected : first ? first.id : null);
+    select(first ? first.id : null);
   });
 
   // ------------------------------------------------------------------- map

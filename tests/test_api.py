@@ -134,3 +134,10 @@ def test_recent_result_is_reused(client):
     _wait(client, first)
     again = client.post("/api/analyze", json={"url": url}).json()
     assert again["id"] == first and again.get("reused")
+
+
+def test_dashboard_map_prefers_server_build(client):
+    assert client.get("/api/dashboard/map").status_code == 200  # committed fallback in web/
+    (store.DATA / "dashboard").mkdir(parents=True, exist_ok=True)
+    (store.DATA / "dashboard" / "narrative-map.html").write_text("<html>server build</html>")
+    assert "server build" in client.get("/api/dashboard/map").text

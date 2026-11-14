@@ -3,7 +3,8 @@
     python -m candor.dashboard fetch   # scrape every author's profile (~1 credit each; resumable)
     python -m candor.dashboard score   # score the authors, thread by thread -> data/dashboard/author_scores.json
     python -m candor.dashboard summarize  # AI summaries of every narrative and topic -> data/dashboard/summaries.json
-    python -m candor.dashboard build   # write web/dashboard/narrative-map.html
+    python -m candor.dashboard build   # write web/dashboard/narrative-map.html (committed fallback)
+    python -m candor.dashboard build-data  # write data/dashboard/narrative-map.html (served first by the API)
     python -m candor.dashboard all     # fetch, then score (the long batch; run detached on the server)
 
 Inputs (data/dashboard/, not in git): stage2_result.json and embeddings_gemini.npz, the Stage 2
@@ -37,6 +38,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DIR = ROOT / "data" / "dashboard"
 SCORES = DIR / "author_scores.json"
 OUT = ROOT / "web" / "dashboard" / "narrative-map.html"
+DATA_OUT = ROOT / "data" / "dashboard" / "narrative-map.html"  # GET /api/dashboard/map prefers this
 BOTS = live.BOTS
 logger = logging.getLogger(__name__)
 
@@ -141,7 +143,7 @@ def _apply_summaries(result: ProcessingResult) -> None:
         t.summary = s["topics"].get(str(t.topic_id))
 
 
-def build() -> None:
+def build(out: Path = OUT) -> None:
     import numpy as np
 
     from candor.spatial_engine import SpatialEngineConfig
@@ -155,9 +157,11 @@ def build() -> None:
         authors = {n: v for n, v in json.loads(SCORES.read_text(encoding="utf-8")).items()
                    if v.get("label") != "no_data"}
     cfg = SpatialEngineConfig(embedding_backend="gemini", hdbscan_min_cluster_size=10, hdbscan_selection_method="leaf")
-    write_report(result, emb, OUT, cfg, source="reddit_posts.json",
+    tmp = out.with_suffix(".tmp.html")
+    write_report(result, emb, tmp, cfg, source="reddit_posts.json",
                  labels_source=f"LLM ({os.environ.get('NVIDIA_MODEL', 'nemotron-3.5-super-vl')})", authors=authors)
-    logger.info("wrote %s (%s authors scored)", OUT, len(authors) if authors else "no")
+    os.replace(tmp, out)
+    logger.info("wrote %s (%s authors scored)", out, len(authors) if authors else "no")
 
 
 if __name__ == "__main__":
@@ -169,5 +173,7 @@ if __name__ == "__main__":
         fetch()
         fetch()  # second pass retries transient errors (they aren't cached)
         score()
+        build(DATA_OUT)
 
-    {"fetch": fetch, "score": score, "summarize": summarize, "build": build, "all": run_all}.get(cmd, lambda: sys.exit(__doc__))()
+    {"fetch": fetch, "score": score, "summarize": summarize, "build": build,
+     "build-data": lambda: build(DATA_OUT), "all": run_all}.get(cmd, lambda: sys.exit(__doc__))()
