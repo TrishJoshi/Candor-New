@@ -1,0 +1,410 @@
+[
+  {
+    "comment_id": "c0006",
+    "author": "user_4943",
+    "text": "Insurance on my EV is double what I paid for my gas car, total rip off.",
+    "created_utc": 1793852500,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_cost"
+  },
+  {
+    "comment_id": "c0034",
+    "author": "user_6737",
+    "text": "We need to legalize building more housing, single family zoning is the problem.",
+    "created_utc": 1793785065,
+    "subreddit": "r/sample",
+    "ground_truth": "housing_zoning"
+  },
+  {
+    "comment_id": "c0023",
+    "author": "user_5070",
+    "text": "My team's output went up after we went fully remote.",
+    "created_utc": 1793803607,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_productive"
+  },
+  {
+    "comment_id": "c0014",
+    "author": "user_6054",
+    "text": "Took my EV on a road trip and spent more time hunting for working chargers than driving.",
+    "created_utc": 1793958352,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_charging"
+  },
+  {
+    "comment_id": "c0024",
+    "author": "user_4999",
+    "text": "Open offices kill focus. At home I can actually do deep work.",
+    "created_utc": 1794177543,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_productive"
+  },
+  {
+    "comment_id": "c0001",
+    "author": "user_1791",
+    "text": "Electric cars only make sense if you're rich. The sticker price is insane.",
+    "created_utc": 1793832327,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_cost"
+  },
+  {
+    "comment_id": "c0033",
+    "author": "user_6140",
+    "text": "Zoning laws that ban apartments are the main reason rent is so high.",
+    "created_utc": 1794151789,
+    "subreddit": "r/sample",
+    "ground_truth": "housing_zoning"
+  },
+  {
+    "comment_id": "c0030",
+    "author": "user_6604",
+    "text": "Spontaneous hallway conversations are where the real collaboration happens.",
+    "created_utc": 1793633727,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_culture"
+  },
+  {
+    "comment_id": "c0016",
+    "author": "user_4078",
+    "text": "Switching to electric cars is one of the best things we can do for the climate.",
+    "created_utc": 1793580240,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_climate"
+  },
+  {
+    "comment_id": "c0042",
+    "author": "freedom_patriot_8803",
+    "text": "Wake up, the EV push is a scam by elites to control your ability to drive.",
+    "created_utc": 1794060540,
+    "subreddit": "r/sample",
+    "ground_truth": "astroturf"
+  },
+  {
+    "comment_id": "c0009",
+    "author": "user_2013",
+    "text": "The charging network just isn't there yet outside of big cities.",
+    "created_utc": 1794309796,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_charging"
+  },
+  {
+    "comment_id": "c0040",
+    "author": "freedom_patriot_8801",
+    "text": "EVs are a total scam pushed by the elites so they can control where you drive.",
+    "created_utc": 1794060180,
+    "subreddit": "r/sample",
+    "ground_truth": "astroturf"
+  },
+  {
+    "comment_id": "c0000",
+    "author": "user_3471",
+    "text": "EVs are still way too expensive for normal families, I can't justify 50k for a car.",
+    "created_utc": 1793770991,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_cost"
+  },
+  {
+    "comment_id": "c0044",
+    "author": "freedom_patriot_8805",
+    "text": "This EV agenda is a scam from the elites to control where people can drive.",
+    "created_utc": 1794060900,
+    "subreddit": "r/sample",
+    "ground_truth": "astroturf"
+  },
+  {
+    "comment_id": "c0035",
+    "author": "user_8474",
+    "text": "Housing is expensive because cities make it illegal to build enough homes.",
+    "created_utc": 1794004735,
+    "subreddit": "r/sample",
+    "ground_truth": "housing_zoning"
+  },
+  {
+    "comment_id": "c0020",
+    "author": "user_8005",
+    "text": "If we're serious about climate change we need to electrify transport now.",
+    "created_utc": 1794079065,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_climate"
+  },
+  {
+    "comment_id": "c0019",
+    "author": "user_9133",
+    "text": "Studies consistently show EVs have a lower carbon footprint than gas cars.",
+    "created_utc": 1794026024,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_climate"
+  },
+  {
+    "comment_id": "c0036",
+    "author": "user_2533",
+    "text": "Upzoning near transit would bring rents down within a few years.",
+    "created_utc": 1793550611,
+    "subreddit": "r/sample",
+    "ground_truth": "housing_zoning"
+  },
+  {
+    "comment_id": "c0002",
+    "author": "user_9779",
+    "text": "Even with the tax credit an EV costs far more than a used Corolla.",
+    "created_utc": 1793553784,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_cost"
+  },
+  {
+    "comment_id": "c0004",
+    "author": "user_4517",
+    "text": "Nobody on a working class budget can afford a new electric car right now.",
+    "created_utc": 1794277184,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_cost"
+  },
+  {
+    "comment_id": "c0046",
+    "author": "user_1994",
+    "text": "lol",
+    "created_utc": 1794122921,
+    "subreddit": "r/sample",
+    "ground_truth": "noise"
+  },
+  {
+    "comment_id": "c0012",
+    "author": "user_3181",
+    "text": "Charging infrastructure in rural areas is basically nonexistent.",
+    "created_utc": 1793531447,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_charging"
+  },
+  {
+    "comment_id": "c0021",
+    "author": "user_8628",
+    "text": "I get way more done working from home without office distractions.",
+    "created_utc": 1794162725,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_productive"
+  },
+  {
+    "comment_id": "c0011",
+    "author": "user_4622",
+    "text": "Apartment dwellers have nowhere to charge, that's the biggest problem with EVs.",
+    "created_utc": 1793534045,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_charging"
+  },
+  {
+    "comment_id": "c0050",
+    "author": "user_6685",
+    "text": "What's the best mechanical keyboard switch for typing?",
+    "created_utc": 1793510694,
+    "subreddit": "r/sample",
+    "ground_truth": "noise"
+  },
+  {
+    "comment_id": "c0049",
+    "author": "user_7320",
+    "text": "[deleted]",
+    "created_utc": 1794257602,
+    "subreddit": "r/sample",
+    "ground_truth": "noise"
+  },
+  {
+    "comment_id": "c0037",
+    "author": "user_8767",
+    "text": "NIMBYs blocking every new development are why young people can't afford homes.",
+    "created_utc": 1794307404,
+    "subreddit": "r/sample",
+    "ground_truth": "housing_zoning"
+  },
+  {
+    "comment_id": "c0032",
+    "author": "user_2271",
+    "text": "New hires really struggle to integrate into a fully remote team.",
+    "created_utc": 1793855547,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_culture"
+  },
+  {
+    "comment_id": "c0027",
+    "author": "user_5717",
+    "text": "Junior employees miss out on mentorship when everyone is remote.",
+    "created_utc": 1794121440,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_culture"
+  },
+  {
+    "comment_id": "c0043",
+    "author": "freedom_patriot_8804",
+    "text": "EVs are a scam. The elites want to control where you can drive. Wake up.",
+    "created_utc": 1794060720,
+    "subreddit": "r/sample",
+    "ground_truth": "astroturf"
+  },
+  {
+    "comment_id": "c0026",
+    "author": "user_6627",
+    "text": "Productivity data from my company shows remote engineers ship more.",
+    "created_utc": 1793944969,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_productive"
+  },
+  {
+    "comment_id": "c0041",
+    "author": "freedom_patriot_8802",
+    "text": "Electric cars are an elite scam designed to control where you are allowed to drive.",
+    "created_utc": 1794060360,
+    "subreddit": "r/sample",
+    "ground_truth": "astroturf"
+  },
+  {
+    "comment_id": "c0017",
+    "author": "user_9974",
+    "text": "Grid is getting cleaner every year so EVs only get greener over time.",
+    "created_utc": 1793812951,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_climate"
+  },
+  {
+    "comment_id": "c0038",
+    "author": "user_2064",
+    "text": "Abolish parking minimums and density limits and housing gets cheaper.",
+    "created_utc": 1794093444,
+    "subreddit": "r/sample",
+    "ground_truth": "housing_zoning"
+  },
+  {
+    "comment_id": "c0028",
+    "author": "user_2199",
+    "text": "Office culture matters, you can't build trust over Zoom.",
+    "created_utc": 1794017340,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_culture"
+  },
+  {
+    "comment_id": "c0048",
+    "author": "user_8301",
+    "text": "My cat just knocked my coffee off the desk again.",
+    "created_utc": 1793737090,
+    "subreddit": "r/sample",
+    "ground_truth": "noise"
+  },
+  {
+    "comment_id": "c0005",
+    "author": "user_8104",
+    "text": "The upfront cost of EVs is the real barrier, not range anxiety.",
+    "created_utc": 1793523596,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_cost"
+  },
+  {
+    "comment_id": "c0045",
+    "author": "freedom_patriot_8806",
+    "text": "Wake up people, electric vehicles are a scam by elites to control your driving.",
+    "created_utc": 1794061080,
+    "subreddit": "r/sample",
+    "ground_truth": "astroturf"
+  },
+  {
+    "comment_id": "c0047",
+    "author": "user_6072",
+    "text": "Anyone know a good pizza place in Denver?",
+    "created_utc": 1794050319,
+    "subreddit": "r/sample",
+    "ground_truth": "noise"
+  },
+  {
+    "comment_id": "c0025",
+    "author": "user_5919",
+    "text": "Working remotely lets me structure my day around when I'm most productive.",
+    "created_utc": 1793561922,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_productive"
+  },
+  {
+    "comment_id": "c0015",
+    "author": "user_3961",
+    "text": "EVs cut lifetime emissions massively even accounting for battery production.",
+    "created_utc": 1793975262,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_climate"
+  },
+  {
+    "comment_id": "c0008",
+    "author": "user_3028",
+    "text": "Public chargers near me are broken half the time, it's a nightmare on road trips.",
+    "created_utc": 1793542271,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_charging"
+  },
+  {
+    "comment_id": "c0018",
+    "author": "user_1976",
+    "text": "Tailpipe emissions in cities are killing people, electric cars fix that.",
+    "created_utc": 1794106463,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_climate"
+  },
+  {
+    "comment_id": "c0013",
+    "author": "user_3363",
+    "text": "Every charging network needs a different app, it's a mess.",
+    "created_utc": 1793741422,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_charging"
+  },
+  {
+    "comment_id": "c0003",
+    "author": "user_1950",
+    "text": "Battery replacement costs alone make electric vehicles a bad deal financially.",
+    "created_utc": 1793572528,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_cost"
+  },
+  {
+    "comment_id": "c0031",
+    "author": "user_9011",
+    "text": "Remote work is isolating, I barely know my coworkers anymore.",
+    "created_utc": 1793622514,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_culture"
+  },
+  {
+    "comment_id": "c0007",
+    "author": "user_7955",
+    "text": "Until EVs are under 25k they will stay a luxury product.",
+    "created_utc": 1793569576,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_cost"
+  },
+  {
+    "comment_id": "c0039",
+    "author": "freedom_patriot_8800",
+    "text": "Wake up people, EVs are a scam pushed by elites to control where you can drive.",
+    "created_utc": 1794060000,
+    "subreddit": "r/sample",
+    "ground_truth": "astroturf"
+  },
+  {
+    "comment_id": "c0010",
+    "author": "user_7499",
+    "text": "I waited 40 minutes for a fast charger at a highway stop last weekend.",
+    "created_utc": 1793989816,
+    "subreddit": "r/sample",
+    "ground_truth": "ev_charging"
+  },
+  {
+    "comment_id": "c0022",
+    "author": "user_8424",
+    "text": "Remote work saved me two hours of commuting a day, I'm more productive than ever.",
+    "created_utc": 1793997125,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_productive"
+  },
+  {
+    "comment_id": "c0029",
+    "author": "user_7850",
+    "text": "I learned more in one month in the office than a year of remote work.",
+    "created_utc": 1793593208,
+    "subreddit": "r/sample",
+    "ground_truth": "wfh_culture"
+  }
+]

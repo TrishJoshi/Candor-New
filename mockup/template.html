@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reddit Authenticity Mockup</title>
+<style>
+:root{
+  --bg:#dae0e6; --card:#ffffff; --card-2:#f6f7f8; --border:#ccc; --border-soft:#edeff1;
+  --text:#1c1c1c; --muted:#7c7c7c; --link:#0079d3; --brand:#ff4500; --vote:#878a8c;
+  --ok:#1a7f37; --ok-bg:#dafbe1; --warn:#9a6700; --warn-bg:#fff4c5; --bad:#cf222e; --bad-bg:#ffe1e1;
+  --na:#6e7781; --na-bg:#eaeef2; --shadow:0 4px 16px rgba(0,0,0,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#030303; --card:#1a1a1b; --card-2:#272729; --border:#343536; --border-soft:#2a2a2c;
+    --text:#d7dadc; --muted:#818384; --link:#4fbcff; --vote:#818384;
+    --ok:#4ac26b; --ok-bg:#12301c; --warn:#d4a72c; --warn-bg:#3a2e0a; --bad:#ff7b72; --bad-bg:#3d1214;
+    --na:#9198a1; --na-bg:#2a2e33; --shadow:0 4px 16px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#030303; --card:#1a1a1b; --card-2:#272729; --border:#343536; --border-soft:#2a2a2c;
+  --text:#d7dadc; --muted:#818384; --link:#4fbcff; --vote:#818384;
+  --ok:#4ac26b; --ok-bg:#12301c; --warn:#d4a72c; --warn-bg:#3a2e0a; --bad:#ff7b72; --bad-bg:#3d1214;
+  --na:#9198a1; --na-bg:#2a2e33; --shadow:0 4px 16px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+button{font:inherit;color:inherit}
+
+/* header */
+header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--border);height:48px;display:flex;align-items:center;gap:12px;padding:0 16px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px;color:var(--text);cursor:pointer}
+.logo .snoo{width:32px;height:32px;border-radius:50%;background:var(--brand);display:grid;place-items:center;color:#fff;font-size:16px}
+.search{flex:1;max-width:560px;margin:0 auto;background:var(--card-2);border:1px solid var(--border-soft);border-radius:20px;padding:7px 14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.shield-toggle{display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--card-2);border-radius:20px;padding:5px 12px;cursor:pointer;white-space:nowrap}
+.shield-toggle[aria-pressed="true"]{border-color:var(--ok);color:var(--ok)}
+
+/* layout */
+.wrap{max-width:1000px;margin:20px auto;padding:0 16px;display:grid;grid-template-columns:minmax(0,1fr) 312px;gap:24px}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}.side{order:-1}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:4px}
+
+/* feed */
+.sortbar{padding:10px 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.chip{border:1px solid var(--border);border-radius:20px;padding:4px 12px;background:transparent;cursor:pointer;color:var(--muted);font-weight:600}
+.chip.on{background:var(--card-2);color:var(--text)}
+.post{display:flex;margin-bottom:10px;cursor:pointer;overflow:hidden}
+.post:hover{border-color:var(--muted)}
+.votes{width:40px;flex:none;background:var(--card-2);display:flex;flex-direction:column;align-items:center;padding:8px 0;color:var(--vote);font-weight:700;font-size:12px}
+.votes .arr{font-size:16px;line-height:1}
+.post-main{padding:8px;min-width:0;flex:1}
+.meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.meta .sub{font-weight:700;color:var(--text)}
+.post h2{font-size:18px;font-weight:500;margin:6px 0 4px;line-height:1.3;overflow-wrap:anywhere}
+.post .snip{color:var(--text);opacity:.85;max-height:4.4em;overflow:hidden;margin:4px 0;overflow-wrap:anywhere}
+.linkdom{font-size:12px;color:var(--link)}
+.actions{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;font-weight:700;margin-top:6px;align-items:center}
+.thread-health{display:inline-flex;align-items:center;gap:6px;border-radius:3px;padding:2px 6px;background:var(--card-2);font-weight:600}
+.dots{display:inline-flex;gap:2px}
+.dots i{width:7px;height:7px;border-radius:50%;display:block}
+
+/* author badge */
+.u{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.u .name{color:var(--text)}
+.u .name:hover{text-decoration:underline;cursor:pointer}
+.badge{display:inline-flex;align-items:center;gap:5px;border:0;border-radius:10px;padding:1px 7px 1px 5px;font-size:11px;font-weight:700;cursor:pointer;line-height:16px}
+.badge .bars{display:inline-flex;gap:1px;align-items:flex-end;height:11px}
+.badge .bars span{width:3px;border-radius:1px;background:currentColor;opacity:.9}
+.badge .bars span.na{opacity:.25;height:3px!important}
+.lv-ok{color:var(--ok);background:var(--ok-bg)}
+.lv-warn{color:var(--warn);background:var(--warn-bg)}
+.lv-bad{color:var(--bad);background:var(--bad-bg)}
+.lv-na{color:var(--na);background:var(--na-bg)}
+.shield-off .badge{display:none}
+
+/* thread page */
+.thread .post{cursor:default}
+.thread .post:hover{border-color:var(--border)}
+.thread .body{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0}
+.comments{padding:8px 12px 16px}
+.cmt{margin-top:12px}
+.cmt .children{margin-left:10px;padding-left:12px;border-left:2px solid var(--border-soft)}
+.cmt .text{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.cmt .foot{font-size:12px;color:var(--muted);font-weight:700;display:flex;gap:12px}
+.warnbox{display:flex;gap:8px;align-items:flex-start;border-radius:4px;padding:6px 10px;font-size:12px;margin:4px 0}
+.warnbox b{font-weight:700}
+.warnbox button{margin-left:auto;background:transparent;border:1px solid currentColor;border-radius:12px;padding:0 8px;cursor:pointer;color:inherit;font-size:11px;white-space:nowrap}
+.cmt.collapsed > .text,.cmt.collapsed > .children,.cmt.collapsed > .foot{display:none}
+.backlink{display:inline-block;margin-bottom:10px;font-weight:600}
+.orphan{font-size:11px;color:var(--muted);font-style:italic}
+
+/* sidebar */
+.side .card{margin-bottom:16px;overflow:hidden}
+.side .hd{background:var(--brand);color:#fff;padding:10px 12px;font-weight:700;display:flex;gap:8px;align-items:center}
+.side .hd.shield{background:#0b6b3a}
+.side .bd{padding:12px}
+.side p{margin:0 0 10px}
+.dist{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:8px 0}
+.legend{display:grid;grid-template-columns:auto 1fr auto;gap:4px 8px;font-size:12px;align-items:center}
+.legend i{width:10px;height:10px;border-radius:2px;display:block}
+.crit-list{font-size:12px;margin:0;padding:0;list-style:none}
+.crit-list li{display:grid;grid-template-columns:28px 1fr 38px;gap:6px;padding:4px 0;border-top:1px solid var(--border-soft);align-items:center}
+.crit-list li:first-child{border-top:0}
+.flagged{list-style:none;margin:0;padding:0}
+.flagged li{padding:8px 0;border-top:1px solid var(--border-soft);font-size:13px}
+.flagged li:first-child{border-top:0}
+.flagged .why{font-size:12px;color:var(--muted);margin-top:2px}
+.slider{width:100%}
+
+/* popover */
+.pop{position:fixed;z-index:50;width:360px;max-width:calc(100vw - 32px);max-height:min(560px,calc(100vh - 32px));overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);padding:14px;display:none}
+.pop.open{display:block}
+.pop .ph{display:flex;align-items:center;gap:10px}
+.pop .av{width:40px;height:40px;border-radius:50%;background:var(--card-2);flex:none;object-fit:cover}
+.pop .big{font-size:26px;font-weight:800;margin-left:auto;text-align:right;line-height:1}
+.pop .big small{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.pop .facts{font-size:12px;color:var(--muted);margin:6px 0 4px}
+.crit{padding:8px 0;border-top:1px solid var(--border-soft)}
+.crit .row{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:700}
+.crit .q{font-size:12px;color:var(--muted);margin:1px 0 4px}
+.meter{height:6px;background:var(--card-2);border-radius:3px;overflow:hidden}
+.meter span{display:block;height:100%;border-radius:3px}
+.sig{font-size:12px;margin:4px 0 0;padding-left:16px}
+.sig li{margin:1px 0}
+.sig .pts{color:var(--bad);font-weight:700}
+.closex{position:absolute;top:6px;right:8px;background:none;border:0;font-size:18px;cursor:pointer;color:var(--muted)}
+.foot-note{font-size:11px;color:var(--muted);margin-top:8px}
+.disclaimer{max-width:1000px;margin:0 auto 24px;padding:0 16px;font-size:11px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo" onclick="location.hash=''"><div class="snoo">●</div><span>reddit</span></div>
+  <div class="search" id="search">🔍 Search Reddit</div>
+  <button class="shield-toggle" id="shieldBtn" aria-pressed="true" title="Toggle authenticity labels">🛡️ <span>Authenticity labels on</span></button>
+</header>
+
+<div class="wrap">
+  <main id="main"></main>
+  <aside class="side" id="side"></aside>
+</div>
+<p class="disclaimer">Concept mockup for the Authenticity Scorer (Junction 2026). It is not affiliated with Reddit. Posts and comments come from a public scrape; scores come from profile_scores.json.</p>
+
+<div class="pop" id="pop" role="dialog" aria-modal="false"></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const P = DATA.profiles, T = DATA.threads, W = DATA.meta.weights;
+const CRIT = {C1:"Profile",C2:"Originality",C3:"Coordination",C4:"Engagement",C5:"Behaviour"};
+const LABEL = {likely_authentic:"Likely authentic",uncertain:"Uncertain",suspicious:"Suspicious",no_data:"No data"};
+const LV = {likely_authentic:"ok",uncertain:"warn",suspicious:"bad",no_data:"na"};
+const state = {shield:true, threshold:0, sort:"new"};
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const lv = u => LV[(P[u]||{}).label] || "na";
+const color = l => `var(--${l})`;
+function ago(iso){
+  if(!iso) return "";
+  const s = (new Date(DATA.meta.scraped_at) - new Date(iso))/1000;
+  if(s<3600) return Math.max(1,Math.round(s/60))+"m ago";
+  if(s<86400) return Math.round(s/3600)+"h ago";
+  if(s<86400*30) return Math.round(s/86400)+"d ago";
+  if(s<86400*365) return Math.round(s/86400/30)+"mo ago";
+  return Math.round(s/86400/365)+"y ago";
+}
+const fmt = n => n==null ? "•" : n>=10000 ? (n/1000).toFixed(1)+"k" : String(n);
+function md(s){
+  let h = esc(s);
+  h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  h = h.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g,'$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+  h = h.replace(/\*\*([^*]+)\*\*/g,"<b>$1</b>").replace(/^&gt;\s?(.*)$/gm,'<span style="color:var(--muted)">│ $1</span>');
+  return h;
+}
+
+/* ---------- badge ---------- */
+function badge(u){
+  const p = P[u];
+  if(!p) return `<span class="badge lv-na" title="Not scored">?</span>`;
+  const l = lv(u);
+  const bars = ["C1","C2","C3","C4","C5"].map(k=>{
+    const c = p.criteria[k];
+    if(!c || !c.assessed) return `<span class="na" title="${k} not assessed"></span>`;
+    return `<span style="height:${Math.max(2,Math.round(c.pct/100*11))}px" title="${k} ${CRIT[k]}: ${c.pct}%"></span>`;
+  }).join("");
+  const score = p.score==null ? "n/a" : Math.round(p.score);
+  return `<button class="badge lv-${l}" data-user="${esc(u)}" aria-label="Authenticity ${score} for ${esc(u)}: ${LABEL[p.label]}">${l==="ok"?"✓":l==="na"?"–":"⚠"} ${score}<span class="bars">${bars}</span></button>`;
+}
+const user = u => `<span class="u"><a class="name" data-user="${esc(u)}" href="javascript:void 0">u/${esc(u)}</a>${badge(u)}</span>`;
+
+/* ---------- popover ---------- */
+const pop = document.getElementById("pop");
+function openPop(u, anchor){
+  const p = P[u]; if(!p) return;
+  const l = lv(u);
+  const facts = [];
+  if(p.age_days!=null) facts.push(`${p.age_days<365?Math.round(p.age_days)+" days":(p.age_days/365).toFixed(1)+" yrs"} old`);
+  if(p.karma!=null) facts.push(`${p.karma.toLocaleString()} karma`);
+  if(p.fetch && p.fetch!=="ok") facts.push(p.fetch.replace("_"," "));
+  if(p.history===false) facts.push("history hidden");
+  const crits = ["C1","C2","C3","C4","C5"].map(k=>{
+    const c = p.criteria[k];
+    if(!c) return "";
+    const cl = !c.assessed ? "na" : c.pct>=80 ? "ok" : c.pct>=50 ? "warn" : "bad";
+    const red = (p.red||[]).includes(k) ? ` <span style="color:var(--bad)">● red flag</span>` : "";
+    const sig = c.signals.length ? `<ul class="sig">${c.signals.map(s=>`<li><span class="pts">${s.points}</span> ${esc(s.why)}</li>`).join("")}</ul>` : "";
+    return `<div class="crit"><div class="row"><span>${k} · ${CRIT[k]}${red}</span><span style="color:${color(cl)}">${c.assessed?c.pct+"%":"not assessed"} <span style="color:var(--muted);font-weight:400">· w${c.weight}</span></span></div>
+      <div class="q">${esc(c.name.split("—")[1]||c.name)}</div>
+      <div class="meter"><span style="width:${c.assessed?c.pct:0}%;background:${color(cl)}"></span></div>${sig}</div>`;
+  }).join("");
+  pop.innerHTML = `<button class="closex" aria-label="Close">×</button>
+    <div class="ph">${p.avatar?`<img class="av" src="${esc(p.avatar)}" alt="" onerror="this.style.visibility='hidden'">`:`<div class="av"></div>`}
+      <div style="min-width:0"><div style="font-weight:700;overflow-wrap:anywhere">u/${esc(u)}</div><div class="facts">${facts.join(" · ")}</div></div>
+      <div class="big" style="color:${color(l)}">${p.score==null?"–":Math.round(p.score)}<small>${LABEL[p.label]}</small></div></div>
+    ${p.bio?`<div class="facts" style="color:var(--text)">${esc(p.bio)}</div>`:""}
+    ${crits}
+    <div class="foot-note">Score = weighted sum of C1–C5 (weights ${Object.entries(W).map(([k,v])=>k+" "+v).join(", ")}). Criteria that can't be assessed default to ${DATA.meta.unassessed_pct}%. Use the score as a prompt to check sources, not as proof.</div>`;
+  pop.classList.add("open");
+  const r = anchor.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+  let x = Math.min(Math.max(16, r.left), innerWidth - pw - 16);
+  let y = r.bottom + 6; if(y + ph > innerHeight - 16) y = Math.max(16, r.top - ph - 6);
+  pop.style.left = x+"px"; pop.style.top = y+"px";
+}
+document.addEventListener("click", e=>{
+  const t = e.target.closest("[data-user]");
+  if(t){ e.preventDefault(); e.stopPropagation(); openPop(t.dataset.user, t); return; }
+  if(e.target.closest(".closex") || !e.target.closest("#pop")) pop.classList.remove("open");
+});
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") pop.classList.remove("open"); });
+addEventListener("scroll", ()=>pop.classList.remove("open"), {passive:true});
+
+/* ---------- thread health ---------- */
+function threadAuthors(t){
+  const s = new Set(t.comments.map(c=>c.author)); if(t.author) s.add(t.author); return [...s];
+}
+function health(t){
+  const us = threadAuthors(t);
+  const flagged = us.filter(u=>["warn","bad"].includes(lv(u))).length;
+  const dots = us.slice(0,12).map(u=>`<i style="background:${color(lv(u))}" title="u/${esc(u)}"></i>`).join("");
+  return `<span class="thread-health" title="Scored participants in this thread">🛡️ <span class="dots">${dots}</span> ${us.length} scored${flagged?` · <span style="color:var(--warn)">${flagged} flagged</span>`:""}</span>`;
+}
+
+/* ---------- views ---------- */
+function postCard(t, full){
+  const by = t.author ? `Posted by ${user(t.author)}` : `<span>Link post · OP not in dataset</span>`;
+  const n = t.num_comments ?? t.comments.length;
+  let dom = "";
+  if(t.link){ try{ dom = `<a class="linkdom" href="${esc(t.link)}" target="_blank" rel="noopener">${esc(new URL(t.link).hostname)} ↗</a>`; }catch(_){} }
+  const body = t.body ? (full ? `<div class="body">${md(t.body)}</div>` : `<div class="snip">${esc(t.body.slice(0,300))}</div>`) : "";
+  return `<article class="card post" data-thread="${t.id}">
+    <div class="votes"><span class="arr">▲</span>${fmt(t.score)}<span class="arr">▼</span></div>
+    <div class="post-main">
+      <div class="meta"><span class="sub">r/${esc(t.sub)}</span><span>•</span>${by}<span>${ago(t.posted_at)}</span></div>
+      <h2>${esc(t.title)}</h2>${dom}${body}
+      <div class="actions"><span>💬 ${n} Comments</span>${health(t)}</div>
+    </div></article>`;
+}
+function renderFeed(){
+  let ts = [...T];
+  if(state.sort==="flagged") ts.sort((a,b)=>flagShare(b)-flagShare(a));
+  else if(state.sort==="top") ts.sort((a,b)=>threadAuthors(b).length-threadAuthors(a).length);
+  document.getElementById("main").innerHTML =
+    `<div class="card sortbar">${[["new","New"],["top","Most discussed"],["flagged","Most flagged"]].map(([k,l])=>`<button class="chip ${state.sort===k?"on":""}" data-sort="${k}">${l}</button>`).join("")}
+     <span style="margin-left:auto;font-size:12px;color:var(--muted)">Topic: ${esc(DATA.meta.topic)}</span></div>` +
+    ts.map(t=>postCard(t,false)).join("");
+}
+function flagShare(t){ const us=threadAuthors(t); return us.filter(u=>["warn","bad"].includes(lv(u))).length + (100-avg(us))/100; }
+function avg(us){ const v=us.map(u=>P[u]?.score).filter(x=>x!=null); return v.length? v.reduce((a,b)=>a+b,0)/v.length : 100; }
+
+function warnFor(u){
+  const p = P[u]; if(!p) return "";
+  const l = lv(u); if(l==="ok") return "";
+  const reasons = Object.entries(p.criteria).flatMap(([k,c])=>c.signals.filter(s=>s.points<=-20).map(s=>s.why)).slice(0,2);
+  return `<div class="warnbox lv-${l}">⚠<div><b>${LABEL[p.label]} account (${p.score==null?"n/a":Math.round(p.score)}/100).</b> ${esc(reasons.join(" · ")||"Not enough data to assess.")}</div><button data-collapse>Hide</button></div>`;
+}
+function renderThread(id){
+  const t = T.find(x=>x.id===id); if(!t){ location.hash=""; return; }
+  const byId = Object.fromEntries(t.comments.map(c=>[c.id,{...c,kids:[]}]));
+  const roots = [];
+  for(const c of Object.values(byId)){
+    if(c.parent && byId[c.parent]) byId[c.parent].kids.push(c);
+    else { c.orphan = c.parent && c.parent!==t.id; roots.push(c); }
+  }
+  const below = u => state.threshold>0 && P[u] && P[u].score!=null && P[u].score < state.threshold;
+  const node = c => {
+    const hide = below(c.author);
+    return `<div class="cmt ${hide?"collapsed":""}" id="c-${c.id}">
+      <div class="meta">${user(c.author)}<span>· ${ago(c.posted_at)}</span>${hide?`<span>· hidden by your threshold <a href="javascript:void 0" data-expand>show</a></span>`:""}</div>
+      ${state.shield?warnFor(c.author):""}
+      ${c.orphan?`<div class="orphan">↳ reply to a comment from an account outside the dataset</div>`:""}
+      <div class="text">${md(c.body)}</div>
+      <div class="foot"><span>▲ ${fmt(c.score)} ▼</span><span>Reply</span><span>Share</span></div>
+      ${c.kids.length?`<div class="children">${c.kids.map(node).join("")}</div>`:""}
+    </div>`;
+  };
+  document.getElementById("main").innerHTML = `<div class="thread"><a class="backlink" href="#">← Back to feed</a>
+    ${postCard(t,true)}
+    ${t.author && state.shield ? `<div class="card" style="padding:0 12px;margin:-4px 0 10px">${warnFor(t.author)}</div>`:""}
+    <div class="card comments"><div class="meta">Showing ${t.comments.length} comments from scored accounts · <a href="${esc(t.url)}" target="_blank" rel="noopener">original thread ↗</a></div>
+    ${roots.map(node).join("") || `<p style="color:var(--muted)">No comments from scored accounts.</p>`}</div></div>`;
+  scrollTo(0,0);
+}
+
+/* ---------- sidebar ---------- */
+function renderSide(){
+  const s = DATA.meta.summary, lc = s.label_counts, tot = Object.values(lc).reduce((a,b)=>a+b,0);
+  const order = ["likely_authentic","uncertain","suspicious","no_data"];
+  const dist = order.map(k=>`<span style="width:${(lc[k]||0)/tot*100}%;background:${color(LV[k])}"></span>`).join("");
+  const leg = order.map(k=>`<i style="background:${color(LV[k])}"></i><span>${LABEL[k]}</span><b>${lc[k]||0}</b>`).join("");
+  const crit = ["C1","C2","C3","C4","C5"].map(k=>`<li><b>${k}</b><span>${CRIT[k]} <span style="color:var(--muted)">(w${W[k]})</span></span><span style="text-align:right">${s.mean_criterion_pct[k]}%</span></li>`).join("");
+  const flagged = Object.entries(P).filter(([u,p])=>["uncertain","suspicious"].includes(p.label)).sort((a,b)=>(a[1].score??0)-(b[1].score??0));
+  const fl = flagged.map(([u,p])=>{
+    const why = Object.values(p.criteria).flatMap(c=>c.signals).sort((a,b)=>a.points-b.points).slice(0,2).map(x=>x.why).join(" · ");
+    return `<li>${user(u)}<div class="why">${esc(why)}</div></li>`;
+  }).join("");
+  document.getElementById("side").innerHTML = `
+    <div class="card"><div class="hd shield">🛡️ Authenticity Shield</div><div class="bd">
+      <p>Every account here is scored 0–100 on five signals of authentic behaviour. Click any badge to see why.</p>
+      <div class="dist">${dist}</div><div class="legend">${leg}</div>
+      <p style="margin-top:12px;font-size:12px;color:var(--muted)">Mean score ${s.mean_score} across ${s.scored} scored profiles</p>
+      <ul class="crit-list">${crit}</ul>
+    </div></div>
+    <div class="card"><div class="hd shield">🎚️ Filter comments</div><div class="bd">
+      <label for="thr" style="font-size:13px">Collapse comments from accounts scoring below <b id="thrv">${state.threshold||"off"}</b></label>
+      <input class="slider" id="thr" type="range" min="0" max="95" step="5" value="${state.threshold}">
+    </div></div>
+    <div class="card"><div class="hd">⚠ Flagged accounts</div><div class="bd"><ul class="flagged">${fl}</ul></div></div>
+    <div class="card"><div class="bd" style="font-size:12px;color:var(--muted)">
+      <b style="color:var(--text)">How to read a badge</b><br>✓/⚠ + overall score, then five bars for C1–C5. A short bar means that criterion lost points; a dot means it couldn't be assessed (e.g. hidden history). A low score is a reason to check sources, not proof of a bot.
+    </div></div>`;
+  document.getElementById("thr").addEventListener("input", e=>{
+    state.threshold = +e.target.value; document.getElementById("thrv").textContent = state.threshold||"off";
+    if(location.hash.startsWith("#/t/")) route();
+  });
+}
+
+/* ---------- interactions ---------- */
+document.getElementById("main").addEventListener("click", e=>{
+  if(e.target.closest("[data-user]")||e.target.closest("a[href^='http']")) return;
+  const s = e.target.closest("[data-sort]"); if(s){ state.sort=s.dataset.sort; renderFeed(); return; }
+  const col = e.target.closest("[data-collapse]");
+  if(col){ const c = col.closest(".cmt"); const on = c.classList.toggle("collapsed"); col.textContent = on?"Show":"Hide"; return; }
+  const ex = e.target.closest("[data-expand]"); if(ex){ ex.closest(".cmt").classList.remove("collapsed"); ex.parentElement.remove(); return; }
+  const p = e.target.closest("[data-thread]");
+  if(p && !location.hash.startsWith("#/t/")) location.hash = "#/t/"+p.dataset.thread;
+});
+const sb = document.getElementById("shieldBtn");
+sb.addEventListener("click", ()=>{
+  state.shield = !state.shield; sb.setAttribute("aria-pressed", state.shield);
+  sb.querySelector("span").textContent = state.shield ? "Authenticity labels on" : "Authenticity labels off";
+  document.body.classList.toggle("shield-off", !state.shield); route();
+});
+document.getElementById("search").textContent = "🔍 Search r/" + [...new Set(T.map(t=>t.sub))].slice(0,3).join(", r/");
+
+function route(){
+  pop.classList.remove("open");
+  const m = location.hash.match(/^#\/t\/(\w+)/);
+  m ? renderThread(m[1]) : renderFeed();
+}
+addEventListener("hashchange", route);
+renderSide(); route();
+</script>
+</body>
+</html>

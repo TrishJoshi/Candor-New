@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Candor</title>
+<meta name="description" content="Candor shows which narratives get the engagement in a Reddit thread, and how credible the accounts pushing them are.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* theme: blue, green, white, red */
+  --blue:#3662e3; --blue-soft:#eaf0fd;
+  --green:#1f9d55; --green-soft:#e6f6ec;
+  --red:#e03e3e;
+  --white:#ffffff;
+  --text:#14182b; --muted:#5d6478; --border:#e3e7f0;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--white);color:var(--text);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+
+.page{min-height:100vh;min-height:100dvh;max-width:960px;margin:0 auto;padding:0 16px;display:flex;flex-direction:column}
+nav{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;color:var(--text);text-decoration:none}
+.flag{display:flex;gap:3px}
+.flag i{width:6px;height:18px;border-radius:2px}
+
+main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:16px 0 24px}
+h1{font-size:clamp(40px,7vw,68px);line-height:1.02;font-weight:800;letter-spacing:-.03em;margin:0}
+h1 span{color:var(--blue)}
+.lede{height:54px;margin:16px 0 36px} /* empty spacer: keeps the gap the old tagline took up */
+
+.modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:720px){.modes{grid-template-columns:minmax(0,1fr)}.lede{margin-bottom:24px}}
+.mode{border:1px solid var(--border);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px;background:var(--white)}
+.mode.demo{border-top:4px solid var(--green)}
+.mode.live{border-top:4px solid var(--blue)}
+.mode h2{font-size:20px;margin:0}
+.mode p{margin:0;color:var(--muted);font-size:15px}
+.pill{align-self:flex-start;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px}
+.demo .pill{background:var(--green-soft);color:var(--green)}
+.live .pill{background:var(--blue-soft);color:var(--blue)}
+.grow{flex:1}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;font:600 15px/1 Inter,system-ui,sans-serif;padding:13px 18px;border-radius:10px;border:0;color:var(--white);text-decoration:none;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.green{background:var(--green)}
+.btn.blue{background:var(--blue)}
+form{display:flex;gap:8px;flex-wrap:wrap}
+input{flex:1 1 200px;min-width:0;font:15px Inter,system-ui,sans-serif;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--white);color:var(--text)}
+input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
+.hint{font-size:13px;color:var(--red);min-height:1.3em}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--border)}
+.status.up i{background:var(--green)}
+.status.down i{background:var(--red)}
+
+footer{padding:16px 0 20px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-top:1px solid var(--border)}
+/* sponsor strip */
+.sponsors{background:#f3f5f9;border-radius:16px;padding:18px 16px 22px;margin-bottom:16px;text-align:center}
+.sp-label{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sp-logos{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:16px clamp(40px,10vw,120px);margin-top:14px}
+.sp-logos a{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);opacity:.85;transition:opacity .15s}
+.sp-logos a:hover{opacity:1}
+.sp-logos img.hostinger{height:30px;width:auto}
+.sp-logos img.nvidia{height:34px;width:auto}
+.ctx{font-weight:700;font-size:21px;letter-spacing:-.02em}
+.ctx img{width:26px;height:26px;border-radius:6px}
+footer a:hover{color:var(--blue)}
+.sr{position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<div class="page">
+
+<nav>
+  <a class="brand" href="./">
+    <span class="flag" aria-hidden="true"><i style="background:var(--blue)"></i><i style="background:var(--green)"></i><i style="background:var(--red)"></i></span>
+    Candor
+  </a>
+  <span class="status" id="api"><i></i><span>Checking API…</span></span>
+</nav>
+
+<main>
+  <h1>See it for <span>yourself</span>.</h1>
+  <div class="lede" aria-hidden="true"></div>
+
+  <div class="modes">
+    <section class="mode demo">
+      <span class="pill">Instant</span>
+      <h2>Browse the demo feed</h2>
+      <p>Threads we've already analysed. Open any commenter to see their credibility score.</p>
+      <div class="grow"></div>
+      <a class="btn green" href="demo.html">Open demo feed →</a>
+    </section>
+
+    <section class="mode live">
+      <span class="pill">Live · 1–2 min</span>
+      <h2>Analyze a Reddit post</h2>
+      <p>Paste any public Reddit thread and we'll run the full analysis.</p>
+      <div class="grow"></div>
+      <form id="live" novalidate>
+        <label for="url" class="sr">Reddit post link</label>
+        <input id="url" type="url" inputmode="url" autocomplete="off" placeholder="https://www.reddit.com/r/…/comments/…">
+        <button class="btn blue" type="submit">Analyze</button>
+      </form>
+      <div class="hint" id="hint"></div>
+    </section>
+  </div>
+</main>
+
+<section class="sponsors" aria-label="Developed with">
+  <div class="sp-label">Developed with</div>
+  <div class="sp-logos">
+    <a href="https://www.hostinger.com" target="_blank" rel="noopener"><img src="logos/hostinger.svg" alt="Hostinger" class="hostinger"></a>
+    <a href="https://context.dev" target="_blank" rel="noopener" class="ctx"><img src="logos/context-dev.svg" alt="">context.dev</a>
+    <a href="https://www.nvidia.com" target="_blank" rel="noopener"><img src="logos/nvidia.svg" alt="NVIDIA" class="nvidia"></a>
+  </div>
+</section>
+
+<footer>
+  <span>Candor · Junction 2026</span>
+</footer>
+
+</div>
+<script>
+const form = document.getElementById('live'), input = document.getElementById('url'), hint = document.getElementById('hint');
+const api = document.getElementById('api');
+
+function validReddit(u) {
+  try {
+    const p = new URL(u.trim()); const h = p.hostname.toLowerCase();
+    return /^https?:$/.test(p.protocol) && (h === 'redd.it' ||
+      ((h === 'reddit.com' || h.endsWith('.reddit.com')) && p.pathname.includes('/comments/')));
+  } catch { return false; }
+}
+
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const u = input.value.trim();
+  if (!validReddit(u)) { hint.textContent = 'Paste a Reddit post link, like reddit.com/r/<sub>/comments/…'; input.focus(); return; }
+  location.href = 'analyze.html?url=' + encodeURIComponent(u);
+});
+input.addEventListener('input', () => { hint.textContent = ''; });
+
+// The landing page works without the API; only the live mode needs it.
+fetch('api/health').then(r => r.ok ? r.json() : Promise.reject())
+  .then(j => { if (!j.ok) throw 0; api.className = 'status up'; api.lastChild.textContent = 'Live API online'; })
+  .catch(() => { api.className = 'status down'; api.lastChild.textContent = 'Live API offline'; });
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+.env
+data/
+key
+key.pub
+*.pem
+__pycache__/
+.venv/
+narrative-buckets/out/
+narrative-buckets/.env
+*.db
+*.db-*
+web/reports/

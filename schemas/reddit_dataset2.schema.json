@@ -1,0 +1,617 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reddit_dataset2.schema.json",
+  "title": "Reddit authenticity dataset (dataset 2)",
+  "description": "Threads, comments and commenter accounts from Reddit, fetched with context.dev's pre-built Reddit parsers (POST /v1/web/scrape, formats.parse=true, parseParams={type:'prebuilt', parser:'reddit-post'|'reddit-user', limit:1-1000}). No login needed (browser profiles are not supported for Reddit). Field names match the parser output. `x-criterion` = which scoring criterion (C1-C5) a field feeds. `x-availability`: confirmed = tested 2026-11-14; documented = in the parser docs, not yet seen in a response; derived = computed locally; partial = only for some accounts. Not obtainable on Reddit at all: who upvoted (voter lists are private), friend/follower graphs, exact vote counts (Reddit fuzzes scores).",
+  "type": "object",
+  "required": [
+    "scrape_meta",
+    "accounts"
+  ],
+  "properties": {
+    "scrape_meta": {
+      "type": "object",
+      "required": [
+        "scraped_at"
+      ],
+      "properties": {
+        "scraped_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Needed for score-per-hour (C4) and account age."
+        },
+        "narrative_topic": {
+          "type": "string"
+        },
+        "parser_limits": {
+          "type": "object",
+          "description": "parseParams.limit used per parser"
+        }
+      }
+    },
+    "threads": {
+      "type": "array",
+      "description": "reddit-post parser: parsed.data.post + parsed.data.comments",
+      "items": {
+        "type": "object",
+        "properties": {
+          "post": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string",
+                "x-criterion": [
+                  "C2"
+                ]
+              },
+              "body": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-criterion": [
+                  "C2"
+                ]
+              },
+              "type": {
+                "enum": [
+                  "text",
+                  "link",
+                  "image",
+                  "gallery",
+                  "video"
+                ]
+              },
+              "url": {
+                "type": "string"
+              },
+              "link_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "domain": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-criterion": [
+                  "C3"
+                ],
+                "description": "Same outside domain pushed by several accounts"
+              },
+              "subreddit": {
+                "type": "string"
+              },
+              "author": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "posted_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "edited_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "score": {
+                "type": "integer",
+                "x-criterion": [
+                  "C4"
+                ]
+              },
+              "upvote_ratio": {
+                "type": "number",
+                "x-criterion": [
+                  "C4"
+                ]
+              },
+              "comment_count": {
+                "type": "integer"
+              },
+              "crosspost_count": {
+                "type": "integer",
+                "x-criterion": [
+                  "C3"
+                ]
+              },
+              "crosspost_parent_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-criterion": [
+                  "C2",
+                  "C3"
+                ]
+              },
+              "award_count": {
+                "type": "integer",
+                "x-criterion": [
+                  "C4"
+                ]
+              },
+              "removed_by": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "images": {
+                "type": "array",
+                "x-criterion": [
+                  "C2"
+                ],
+                "description": "url/width/height/caption — for perceptual hashing"
+              }
+            },
+            "x-availability": "documented"
+          },
+          "comments": {
+            "type": "array",
+            "description": "Nested tree (replies[] recursive), up to 1000 per thread, shallowest first",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "author": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "body": {
+                  "type": "string",
+                  "x-criterion": [
+                    "C2",
+                    "C3"
+                  ]
+                },
+                "score": {
+                  "type": "integer",
+                  "x-criterion": [
+                    "C4"
+                  ]
+                },
+                "posted_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "x-criterion": [
+                    "C3",
+                    "C4"
+                  ],
+                  "description": "Exact timestamp (Facebook only gives '3h ago')"
+                },
+                "depth": {
+                  "type": "integer",
+                  "x-criterion": [
+                    "C3"
+                  ]
+                },
+                "parent_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "x-criterion": [
+                    "C3"
+                  ],
+                  "description": "Reconstructs reply pile-ons"
+                },
+                "is_submitter": {
+                  "type": "boolean"
+                },
+                "is_deleted": {
+                  "type": "boolean"
+                },
+                "is_collapsed": {
+                  "type": "boolean",
+                  "description": "Collapsed by Reddit (often low-score / crowd-controlled)"
+                },
+                "award_count": {
+                  "type": "integer",
+                  "x-criterion": [
+                    "C4"
+                  ]
+                },
+                "author_avatar_url": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "replies": {
+                  "type": "array"
+                },
+                "score_per_hour": {
+                  "type": "number",
+                  "x-criterion": [
+                    "C4"
+                  ],
+                  "x-availability": "derived"
+                },
+                "links": {
+                  "type": "array",
+                  "x-criterion": [
+                    "C3"
+                  ],
+                  "x-availability": "derived",
+                  "description": "URLs in body; replaces C3's hashtag check (Reddit rarely uses hashtags)"
+                }
+              }
+            },
+            "x-availability": "documented"
+          }
+        }
+      }
+    },
+    "accounts": {
+      "type": "object",
+      "description": "Keyed by username. reddit-user parser on /user/<name>/overview?sort=new.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "username",
+          "fetch_status"
+        ],
+        "properties": {
+          "fetch_status": {
+            "enum": [
+              "ok",
+              "not_found",
+              "suspended",
+              "blocked",
+              "error"
+            ],
+            "x-criterion": [
+              "C1"
+            ]
+          },
+          "user": {
+            "type": "object",
+            "x-criterion": [
+              "C1"
+            ],
+            "x-availability": "confirmed",
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "username": {
+                "type": "string"
+              },
+              "display_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "bio": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "created_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "Exact to the second — real account age, no ID-range guessing"
+              },
+              "total_karma": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "post_karma": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "comment_karma": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "awardee_karma": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "awarder_karma": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "is_verified": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "has_verified_email": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "is_suspended": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "is_employee": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "is_moderator": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "is_premium": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "is_nsfw": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "accepts_followers": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "avatar_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "banner_url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "description": "Reddit returns most fields as null for suspended accounts"
+          },
+          "trophies": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "x-criterion": [
+              "C1"
+            ],
+            "x-availability": "confirmed",
+            "description": "name/description/granted_at — e.g. 'Verified Email', 'X-Year Club'"
+          },
+          "moderated_communities": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "x-criterion": [
+              "C1"
+            ],
+            "x-availability": "confirmed"
+          },
+          "history_visible": {
+            "type": "boolean",
+            "x-criterion": [
+              "C5"
+            ],
+            "x-availability": "derived",
+            "description": "false when the user hides activity (parser returns empty lists). ~40% visible in a 7-account test."
+          },
+          "comments": {
+            "type": "array",
+            "x-criterion": [
+              "C5"
+            ],
+            "x-availability": "partial",
+            "description": "Most recent comments (parseParams.limit caps posts+comments together, max 1000)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "author": {
+                  "type": "string"
+                },
+                "body": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "integer"
+                },
+                "is_submitter": {
+                  "type": "boolean"
+                },
+                "is_stickied": {
+                  "type": "boolean"
+                },
+                "distinguished": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "posted_at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "edited_at": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "subreddit": {
+                  "type": "string"
+                },
+                "parent_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "url": {
+                  "type": "string"
+                },
+                "award_count": {
+                  "type": "integer"
+                },
+                "post": {
+                  "type": "object",
+                  "description": "id/title/url/author/is_nsfw of the thread it was posted in"
+                }
+              }
+            }
+          },
+          "posts": {
+            "type": "array",
+            "x-criterion": [
+              "C5"
+            ],
+            "x-availability": "partial",
+            "description": "Same shape as threads[].post"
+          },
+          "derived": {
+            "type": "object",
+            "x-availability": "derived",
+            "properties": {
+              "account_age_days": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "x-criterion": [
+                  "C1"
+                ]
+              },
+              "has_default_avatar": {
+                "type": "boolean",
+                "x-criterion": [
+                  "C1"
+                ],
+                "description": "Reddit's equivalent of 'no photo'"
+              },
+              "username_is_default_pattern": {
+                "type": "boolean",
+                "x-criterion": [
+                  "C1"
+                ],
+                "description": "Reddit's auto-suggested Word_Word_1234 style (common for throwaway/bulk accounts)"
+              },
+              "n_items": {
+                "type": "integer",
+                "x-criterion": [
+                  "C5"
+                ]
+              },
+              "first_activity_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "x-criterion": [
+                  "C1",
+                  "C5"
+                ],
+                "description": "Oldest of the fetched items (only the latest `limit` are fetched, so for very active users this is recent, not their true first activity)"
+              },
+              "distinct_subreddits": {
+                "type": "integer",
+                "x-criterion": [
+                  "C5"
+                ]
+              },
+              "top_subreddits": {
+                "type": "array",
+                "x-criterion": [
+                  "C5"
+                ]
+              },
+              "share_on_topic": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "x-criterion": [
+                  "C5"
+                ],
+                "description": "Share of own comments mentioning the narrative keywords (single-issue accounts)"
+              },
+              "near_duplicate_own_comments": {
+                "type": "integer",
+                "x-criterion": [
+                  "C2",
+                  "C5"
+                ],
+                "description": "Pairs of own comments in different threads with char 3-5-gram cosine >= 0.85"
+              },
+              "median_gap_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "x-criterion": [
+                  "C3",
+                  "C5"
+                ]
+              },
+              "active_hours_utc": {
+                "type": "array",
+                "minItems": 24,
+                "maxItems": 24,
+                "x-criterion": [
+                  "C5"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

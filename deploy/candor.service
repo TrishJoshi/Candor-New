@@ -1,0 +1,14 @@
+[Unit]
+Description=Candor API (FastAPI/uvicorn)
+After=network.target
+
+[Service]
+User=candor
+WorkingDirectory=/opt/candor/app
+EnvironmentFile=/opt/candor/app/.env
+ExecStart=/opt/candor/venv/bin/uvicorn candor.api:app --host 127.0.0.1 --port 8000 --workers 1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

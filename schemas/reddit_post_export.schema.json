@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RedditPostExport",
+  "description": "Schema for extracted Reddit posts, comments, threaded replies, and upvote counts.",
+  "type": "object",
+  "properties": {
+    "post_id": {
+      "type": "string",
+      "description": "Unique identifier for the Reddit post (e.g., 't3_1234abc')."
+    },
+    "title": {
+      "type": "string",
+      "description": "The title of the Reddit post."
+    },
+    "author": {
+      "type": "string",
+      "description": "The username of the post author."
+    },
+    "subreddit": {
+      "type": "string",
+      "description": "The name of the subreddit where the post was published."
+    },
+    "body": {
+      "type": "string",
+      "description": "The main text body or content of the post (if self-post)."
+    },
+    "upvote_count": {
+      "type": "integer",
+      "description": "The net upvote count (score) of the post."
+    },
+    "created_utc": {
+      "type": "number",
+      "description": "Unix timestamp of when the post was created."
+    },
+    "comments": {
+      "type": "array",
+      "description": "List of top-level comments on the post.",
+      "items": {
+        "$ref": "#/$defs/Comment"
+      }
+    }
+  },
+  "required": [
+    "post_id",
+    "title",
+    "author",
+    "subreddit",
+    "upvote_count",
+    "comments"
+  ],
+  "$defs": {
+    "Comment": {
+      "type": "object",
+      "description": "Represents a single comment, supporting recursive threaded replies.",
+      "properties": {
+        "comment_id": {
+          "type": "string",
+          "description": "Unique identifier for the comment (e.g., 't1_abcdef')."
+        },
+        "author": {
+          "type": "string",
+          "description": "The username of the comment author."
+        },
+        "body": {
+          "type": "string",
+          "description": "The text content of the comment."
+        },
+        "upvote_count": {
+          "type": "integer",
+          "description": "The net upvote count (score) of the comment."
+        },
+        "created_utc": {
+          "type": "number",
+          "description": "Unix timestamp of when the comment was created."
+        },
+        "replies": {
+          "type": "array",
+          "description": "Nested replies to this comment, following the same comment structure.",
+          "items": {
+            "$ref": "#/$defs/Comment"
+          }
+        }
+      },
+      "required": [
+        "comment_id",
+        "author",
+        "body",
+        "upvote_count"
+      ]
+    }
+  }
+}
