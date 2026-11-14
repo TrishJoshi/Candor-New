@@ -65,6 +65,7 @@ import numpy as np  # noqa: E402
 
 from candor import store  # noqa: E402
 from candor.ingest import flatten_reddit_posts  # noqa: E402  (narrative-buckets, via candor.__path__)
+from candor.labeling import add_summaries  # noqa: E402
 from candor.profiles import pick_authors, scrape_profiles  # noqa: E402
 from candor.schemas import NOISE_ID  # noqa: E402
 from candor.scoring import score_thread  # noqa: E402
@@ -140,7 +141,12 @@ def analyze(analysis_id: str, url: str, progress: Callable[[float, str], None] =
         embeddings = engine.embed(items)
         prog(0.40, "Clustering and naming narratives (NVIDIA)", "narratives")
         result = engine.process(items, embeddings=embeddings)
-        prog(0.45, f"{len(result.narratives)} narratives found", "narratives")
+        prog(0.45, f"Summarising {len(result.narratives)} narratives (NVIDIA)", "narratives")
+        try:
+            add_summaries(result, engine.labeler)
+        except Exception:  # summaries are a nice-to-have; never fail the job over them
+            logger.exception("narrative summaries failed")
+        prog(0.50, f"{len(result.narratives)} narratives found", "narratives")
         store.write_json(analysis_id, "stage2.json", result.model_dump())
         np.save(store.run_dir(analysis_id) / "embeddings.npy", embeddings.astype("float32"))  # lets map.html be rebuilt
         accounts = fut.result()

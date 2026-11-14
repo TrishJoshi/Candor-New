@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import threading
 import time
 from typing import Protocol, Sequence
 
@@ -43,6 +44,20 @@ TOPIC_PROMPT = (
     "Summarize the macro-topic in exactly 1 to 3 words. "
     "Output nothing but the label."
 )
+
+NARRATIVE_SUMMARY_PROMPT = (
+    "Here are {n} social media comments that share a viewpoint (narrative label: \"{label}\"). "
+    "In one or two plain sentences (at most 40 words), summarise what these commenters argue and why. "
+    "Write neutrally, as an analyst describing the discussion; don't quote or name users. "
+    "Output only the summary.\n\n{comments}"
+)
+TOPIC_SUMMARY_PROMPT = (
+    "A discussion about \"{label}\" contains these narratives:\n{narratives}\n\n"
+    "In two plain sentences (at most 50 words), summarise what the discussion is about and how "
+    "the viewpoints differ. Write neutrally, as an analyst. Output only the summary."
+)
+_SUMMARY_MAX_TOKENS = 160
+_MAX_SUMMARY_COMMENTS = 8
 
 _MAX_CHARS_PER_COMMENT = 500
 _RETRYABLE = (
@@ -83,6 +98,7 @@ class NemotronLabeler:
         self._max_tokens = 32 if disable_thinking else 1024
         self._min_interval = 60.0 / requests_per_minute
         self._last_call = 0.0
+        self._lock = threading.Lock()  # summaries are requested from several threads
         self._complete_with_retry = retry(
             retry=retry_if_exception_type(_RETRYABLE),
             wait=wait_exponential(multiplier=2, min=2, max=60),
@@ -105,25 +121,27 @@ class NemotronLabeler:
         )
 
     def _throttle(self) -> None:
-        wait = self._last_call + self._min_interval - time.monotonic()
+        with self._lock:  # reserve the next slot, then sleep outside the lock
+            start = max(time.monotonic(), self._last_call + self._min_interval)
+            self._last_call = start
+        wait = start - time.monotonic()
         if wait > 0:
             time.sleep(wait)
-        self._last_call = time.monotonic()
 
-    def _complete(self, prompt: str) -> str:
+    def _complete(self, prompt: str, max_tokens: int | None = None, clean=None) -> str:
         self._throttle()
         resp = self._client.chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.2,
-            max_tokens=self._max_tokens,
+            max_tokens=max_tokens or self._max_tokens,
             extra_body=self._extra_body,
         )
-        return clean_label(resp.choices[0].message.content or "")
+        return (clean or clean_label)(resp.choices[0].message.content or "")
 
-    def _ask(self, prompt: str) -> str | None:
+    def _ask(self, prompt: str, **kw) -> str | None:
         try:
-            return self._complete_with_retry(prompt) or None
+            return self._complete_with_retry(prompt, **kw) or None
         except openai.OpenAIError as exc:
             logger.warning("LLM labeling failed (%s); falling back to keywords", exc)
             return None
@@ -137,6 +155,58 @@ class NemotronLabeler:
     def label_topic(self, narrative_labels: Sequence[str]) -> str | None:
         labels = "; ".join(f'"{l}"' for l in narrative_labels)
         return self._ask(TOPIC_PROMPT.format(labels=labels))
+
+    def summarize_narrative(self, label: str, texts: Sequence[str]) -> str | None:
+        comments = "\n".join(
+            f"{i}. {t[:_MAX_CHARS_PER_COMMENT].strip()}" for i, t in enumerate(texts, 1)
+        )
+        return self._ask(NARRATIVE_SUMMARY_PROMPT.format(n=len(texts), label=label, comments=comments),
+                         max_tokens=_SUMMARY_MAX_TOKENS, clean=clean_summary)
+
+    def summarize_topic(self, label: str, narratives: Sequence[tuple[str, str | None]]) -> str | None:
+        lines = "\n".join(f"- {l}" + (f": {s}" if s else "") for l, s in narratives)
+        return self._ask(TOPIC_SUMMARY_PROMPT.format(label=label, narratives=lines),
+                         max_tokens=_SUMMARY_MAX_TOKENS, clean=clean_summary)
+
+
+def clean_summary(raw: str) -> str:
+    """Strip reasoning tags, a "Summary:" prefix and wrapping quotes; keep the whole text."""
+    text = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+    text = re.sub(r"^(summary)\s*:\s*", "", text, flags=re.IGNORECASE)
+    return " ".join(text.strip(" \"'*`").split())
+
+
+def add_summaries(result, labeler, workers: int = 4) -> int:
+    """Fill ``summary`` on every narrative, then every topic, of a ProcessingResult in place.
+
+    Uses the labeler's ``summarize_*`` methods (skipped if it has none). Returns how many
+    summaries were written; failures leave ``summary`` as None.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    if labeler is None or not hasattr(labeler, "summarize_narrative"):
+        return 0
+    by_id = {c.comment_id: c for c in result.comments}
+    members: dict[int, list[str]] = {}
+    for c in result.comments:
+        members.setdefault(c.narrative_id, []).append(c.text)
+
+    def narrative(n):
+        reps = [by_id[i].text for i in n.representative_comment_ids if i in by_id]
+        extra = [t for t in members.get(n.narrative_id, []) if t not in reps]
+        texts = (reps + extra)[:_MAX_SUMMARY_COMMENTS]
+        n.summary = labeler.summarize_narrative(n.label, texts) if texts else None
+
+    narr = {n.narrative_id: n for n in result.narratives}
+
+    def topic(t):
+        t.summary = labeler.summarize_topic(
+            t.label, [(narr[i].label, narr[i].summary) for i in t.narrative_ids if i in narr])
+
+    with ThreadPoolExecutor(workers) as ex:
+        list(ex.map(narrative, result.narratives))
+        list(ex.map(topic, result.topics))
+    return sum(bool(x.summary) for x in [*result.narratives, *result.topics])
 
 
 def clean_label(raw: str) -> str:

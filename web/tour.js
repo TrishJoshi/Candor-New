@@ -131,6 +131,9 @@
     if (lastFocus && lastFocus.focus) lastFocus.focus({preventScroll: true});
   }
 
+  if (!document.getElementById("ct-style")) {  // style the nav button before any tour starts
+    const st = document.createElement("style"); st.id = "ct-style"; st.textContent = CSS; document.head.append(st);
+  }
   document.addEventListener("click", e => {
     if (e.target.closest("[data-tour-start]")) { e.preventDefault(); start(); }
   });

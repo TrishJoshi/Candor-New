@@ -2,6 +2,7 @@
 
     python -m candor.dashboard fetch   # scrape every author's profile (~1 credit each; resumable)
     python -m candor.dashboard score   # score the authors, thread by thread -> data/dashboard/author_scores.json
+    python -m candor.dashboard summarize  # AI summaries of every narrative and topic -> data/dashboard/summaries.json
     python -m candor.dashboard build   # write web/dashboard/narrative-map.html
     python -m candor.dashboard all     # fetch, then score (the long batch; run detached on the server)
 
@@ -115,6 +116,31 @@ def score() -> None:
     logger.info("scored %d authors (%d not fetched yet): %s", len(out), missing, dict(labels))
 
 
+SUMMARIES = DIR / "summaries.json"
+
+
+def summarize() -> None:
+    from candor.labeling import add_summaries, default_labeler
+
+    result = load_result()
+    n = add_summaries(result, default_labeler())
+    SUMMARIES.write_text(json.dumps({
+        "narratives": {n.narrative_id: n.summary for n in result.narratives},
+        "topics": {t.topic_id: t.summary for t in result.topics},
+    }, ensure_ascii=False, indent=0), encoding="utf-8")
+    logger.info("wrote %d summaries to %s", n, SUMMARIES)
+
+
+def _apply_summaries(result: ProcessingResult) -> None:
+    if not SUMMARIES.exists():
+        return
+    s = json.loads(SUMMARIES.read_text(encoding="utf-8"))
+    for n in result.narratives:
+        n.summary = s["narratives"].get(str(n.narrative_id))
+    for t in result.topics:
+        t.summary = s["topics"].get(str(t.topic_id))
+
+
 def build() -> None:
     import numpy as np
 
@@ -122,6 +148,7 @@ def build() -> None:
     from candor.visualize import write_report
 
     result = load_result()
+    _apply_summaries(result)
     emb = np.load(DIR / "embeddings_gemini.npz")["embeddings"]
     authors = None
     if SCORES.exists():
@@ -143,4 +170,4 @@ if __name__ == "__main__":
         fetch()  # second pass retries transient errors (they aren't cached)
         score()
 
-    {"fetch": fetch, "score": score, "build": build, "all": run_all}.get(cmd, lambda: sys.exit(__doc__))()
+    {"fetch": fetch, "score": score, "summarize": summarize, "build": build, "all": run_all}.get(cmd, lambda: sys.exit(__doc__))()

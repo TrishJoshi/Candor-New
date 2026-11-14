@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
@@ -105,10 +106,26 @@ def build_report_data(
     has_upvotes = any(u is not None for u in upvotes)
     bands = [_band((authors or {}).get(c.author)) for c in comments] if authors is not None else None
 
+    def auth_stats(idx) -> dict:
+        """Authenticity of a set of comments from their authors' scores, weighted by engagement
+        (log(1 + upvotes) + 1, so one viral comment doesn't decide a narrative's score)."""
+        if bands is None:
+            return {}
+        n = len(idx)
+        scored = [i for i in idx if bands[i] is not None]
+        w = {i: math.log1p(upvotes[i] or 0) + 1 for i in scored}
+        tw = sum(w.values())
+        return {
+            "auth_score": round(sum(w[i] * points["auth"][i] for i in scored) / tw, 1) if tw else None,
+            "inauth_share": round(sum(w[i] for i in scored if bands[i] in ("warn", "bad")) / tw, 3) if tw else None,
+            "n_scored": len(scored),
+            "coverage": round(len(scored) / n, 3) if n else 0.0,
+        }
+
     def engagement(idx) -> dict:
         """Upvotes of a set of points, split by author authenticity band.
         Each item counts upvotes + 1, so unvoted comments still register."""
-        out = {"upvotes": sum(upvotes[i] or 0 for i in idx)}
+        out = {"upvotes": sum(upvotes[i] or 0 for i in idx), **auth_stats(idx)}
         if bands is not None:
             by = {"ok": 0, "warn": 0, "bad": 0, "na": 0}
             for i in idx:
@@ -128,6 +145,7 @@ def build_report_data(
         "subreddit": [getattr(c, "subreddit", None) or "" for c in comments],
         "kind": [getattr(c, "kind", None) or "comment" for c in comments],
         "text": [_truncate(c.text, _MAX_HOVER_CHARS) for c in comments],
+        "t": [_epoch(getattr(c, "created_utc", None)) for c in comments],
     }
     if has_upvotes:
         points["upvotes"] = upvotes
@@ -169,6 +187,8 @@ def build_report_data(
                 "narratives": t.narrative_ids,
                 "keywords": [[k.word, k.weight] for k in t.keywords],
                 "subreddits": subs_by_topic.get(t.topic_id, Counter()).most_common(4),
+                "summary": getattr(t, "summary", None),
+                **engagement([i for i, c in enumerate(comments) if c.topic_id == t.topic_id]),
             }
             for t in sorted(result.topics, key=lambda t: -t.size)
         ],
@@ -180,6 +200,7 @@ def build_report_data(
                 "size": n.size,
                 "center": centers[n.narrative_id],
                 **engagement(idx_of.get(n.narrative_id, [])),
+                "summary": getattr(n, "summary", None),
                 "keywords": [[k.word, k.weight] for k in n.keywords],
                 "examples": [
                     {"author": by_id[cid].author, "text": _truncate(by_id[cid].text, 240)}
@@ -210,6 +231,13 @@ def write_report(
     path = Path(path)
     path.write_text(html, encoding="utf-8")
     return path
+
+
+def _epoch(v) -> int | None:
+    try:
+        return int(float(v)) if v is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _truncate(text: str, n: int) -> str:
@@ -330,6 +358,26 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; } }
 :root[data-theme="dark"] { --ok: #4ac26b; --warn: #d4a72c; --bad: #ff7b72; --na: #55544f; }
 .tip { max-width: 300px; }
+select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink); font: inherit; margin-bottom: 8px; }
+.t-auth { display: inline-block; font-size: 11px; font-weight: 650; padding: 0 6px; border-radius: 8px; margin-left: 6px; vertical-align: 1px; }
+.a-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.a-warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.a-bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.a-na { color: var(--muted); background: var(--surface-2); }
+.authline { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; color: var(--ink-2); margin: 4px 0 6px; }
+.authline .t-auth { margin-left: 0; font-size: 12px; padding: 1px 8px; }
+.summary { font-size: 14.5px; line-height: 1.55; margin: 8px 0; color: var(--ink); }
+.ai-tag { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--series-1); margin-right: 6px; }
+.card.topic-card { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 4px 20px; align-items: start; }
+.card.topic-card .summary { font-size: 17px; line-height: 1.55; margin: 6px 0 4px; }
+.card.topic-card canvas { height: 170px; }
+.card.topic-card .side-cloud .meta { margin: 0; }
+@media (max-width: 760px) { .card.topic-card { grid-template-columns: 1fr; } }
+.card.has-summary:not(.topic-card) canvas { height: 110px; opacity: .85; }
+.card .sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+#timeline { width: 100%; height: 280px; }
+.tl-note { color: var(--muted); font-size: 12px; padding: 0 14px 10px; margin: 0; }
+.panel.tl { margin-top: 16px; }
 </style>
 <script src="__PLOTLY_URL__"></script>
 </head>
@@ -344,6 +392,7 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     <aside class="panel" aria-label="Topics">
       <div class="panel-head">
         <h2>Topics</h2>
+        <select id="sub-filter" aria-label="Filter by subreddit" hidden></select>
         <input type="search" id="topic-search" placeholder="Filter topics or keywords…" aria-label="Filter topics">
       </div>
       <ol id="topic-list"></ol>
@@ -356,7 +405,7 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
             <span><i style="background:var(--series-1)"></i>Selected topic</span>
             <span><i style="background:var(--series-2)"></i>Hovered narrative</span>
             <span><i style="background:var(--context)"></i>Other topics</span>
-            <label><input type="checkbox" id="show-noise"> Noise</label>
+            <label data-tip="Noise = comments that don't belong to any narrative: too short, off-topic or one of a kind (jokes, 'this', one-word replies). The clustering leaves them unassigned rather than forcing them into a group. Tick to show them as grey dots."><input type="checkbox" id="show-noise"> Noise</label>
             <label><input type="checkbox" id="zoom-topic"> Zoom to topic</label>
           </div>
           <div class="legend enc" id="enc" style="flex-basis:100%;margin-left:0">
@@ -368,7 +417,12 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
         <div id="map" role="img" aria-label="2D map of all comments, coloured by the selected topic"></div>
         <p class="hint" id="hint">Each dot is a post or comment, placed by meaning (UMAP of sentence embeddings). Click a dot to select its topic; scroll to zoom, double-click to reset.</p>
       </section>
-      <h3 class="section">Word clouds <span style="text-transform:none;letter-spacing:0;font-weight:400">· c-TF-IDF keywords, larger = more distinctive</span></h3>
+      <section class="panel tl">
+        <div class="map-head"><h2>Activity over time</h2><span class="sub" id="tl-sub"></span></div>
+        <div id="timeline" role="img" aria-label="Comments over time, overall and per narrative of the selected topic"></div>
+        <p class="tl-note" id="tl-note"></p>
+      </section>
+      <h3 class="section">Summaries <span style="text-transform:none;letter-spacing:0;font-weight:400">· written by an AI model from the comments; word clouds show each group's most distinctive words</span></h3>
       <div class="clouds" id="clouds"></div>
     </main>
   </div>
@@ -400,6 +454,7 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
   const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
   const bandTotal = by => BANDS.reduce((s, k) => s + (by[k] || 0), 0);
 
+  const idxBy = pred => { const out = []; for (let i = 0; i < N; i++) if (pred(i)) out.push(i); return out; };
   let selected = DATA.topics.length ? DATA.topics[0].id : null;
   let hovered = null;
   let showNoise = false;
@@ -409,22 +464,60 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
   document.getElementById("subtitle").textContent =
     `${m.source || "dataset"} · generated ${m.generated} · embeddings: ${m.params.embedder} · HDBSCAN ${m.params.selection}, min cluster ${m.params.min_cluster_size} · topics: ${m.params.topic_method} @ ${m.params.topic_threshold}` +
     (m.labels ? ` · labels: ${m.labels}` : "");
-  const tiles = [
-    [fmt.format(m.n_items), "posts & comments", "Every post and comment on the map (empty texts are left out)."],
-    [fmt.format(DATA.topics.length), "topics", "What people talk about: groups of related narratives, merged by meaning."],
-    [fmt.format(DATA.narratives.length), "narratives", "What people argue: clusters of comments that make the same point, found with HDBSCAN on their embeddings."],
-    [Math.round(100 * m.n_noise / Math.max(m.n_items, 1)) + "%", "unclustered (noise)", "Comments too short or too unique to belong to any narrative (jokes, one-word replies). Hidden on the map unless you tick Noise."],
-  ];
-  if (HAS_UP) tiles.push([fmt.format(m.engagement.upvotes), "upvotes", "Sum of the upvotes of every item on the map, as shown on Reddit when it was scraped."]);
-  if (HAS_AUTH) {
-    const by = m.engagement.by_band, tot = bandTotal(by);
-    tiles.push([pct(by.ok, tot) + "%", "of engagement from likely-authentic accounts",
-      `Engagement = upvotes + 1 per comment. Likely authentic ${pct(by.ok, tot)}%, uncertain ${pct(by.warn, tot)}%, suspicious ${pct(by.bad, tot)}%, from authors we didn't score ${pct(by.na, tot)}%.`]);
+  // ------------------------------------------------- subreddit filter
+  let sub = "";  // "" = all subreddits
+  const inSub = i => !sub || P.subreddit[i] === sub;
+  const subCounts = new Map();
+  P.subreddit.forEach(s => { if (s) subCounts.set(s, (subCounts.get(s) || 0) + 1); });
+  const subSel = document.getElementById("sub-filter");
+  if (subCounts.size > 1) {
+    subSel.hidden = false;
+    subSel.append(el("option", {value: "", textContent: `All subreddits (${fmt.format(N)})`}),
+      ...[...subCounts].sort((a, b) => b[1] - a[1]).map(([s, c]) => el("option", {value: s, textContent: `r/${s} (${fmt.format(c)})`})));
   }
-  document.getElementById("tiles").append(...tiles.map(([v, k, tipText]) => {
-    const t = el("div", {className: "tile", tabIndex: 0}, el("div", {className: "v", textContent: v}), el("div", {className: "k", textContent: k}));
-    t.dataset.tip = tipText; return t;
-  }));
+  // Authenticity of a set of points: engagement-weighted (log(1+upvotes)+1) mean of the authors' scores.
+  function authOf(idx) {
+    let w = 0, ws = 0, bad = 0, n = 0;
+    for (const i of idx) {
+      if (!HAS_AUTH || P.auth[i] == null) continue;
+      const x = Math.log1p(HAS_UP ? (P.upvotes[i] || 0) : 0) + 1;
+      w += x; ws += x * P.auth[i]; n++;
+      if (P.band[i] === "warn" || P.band[i] === "bad") bad += x;
+    }
+    return {score: w ? ws / w : null, inauth: w ? bad / w : null, n, coverage: idx.length ? n / idx.length : 0};
+  }
+  const MIN_SCORED = 3;  // fewer scored comments than this: no score shown
+  const authClass = s => s == null ? "a-na" : s >= 70 ? "a-ok" : s >= 40 ? "a-warn" : "a-bad";
+  const AUTH_TIP = "Authenticity score of this group: the average authenticity score (0–100) of the authors of its comments, each comment weighted by its engagement (log of upvotes + 1). 70+ = mostly likely-authentic accounts, 40–69 = mixed, below 40 = mostly suspicious.";
+  function authChip(a, cls = "t-auth") {
+    const c = el("span", {className: `${cls} ${authClass(a.n >= MIN_SCORED ? a.score : null)}`,
+      textContent: a.n >= MIN_SCORED ? `Authenticity ${Math.round(a.score)}` : "Authenticity n/a"});
+    c.dataset.tip = a.n >= MIN_SCORED ? AUTH_TIP + ` Based on ${a.n} scored comments (${pct(a.n, a.n / (a.coverage || 1))}% of the group).`
+      : `Fewer than ${MIN_SCORED} of this group's comments come from scored accounts, so it gets no score.`;
+    return c;
+  }
+
+  function renderTiles() {
+    const idx = idxBy(inSub), clustered = idx.filter(i => P.narrative[i] !== -1);
+    const nT = new Set(clustered.map(i => P.topic[i])).size, nN = new Set(clustered.map(i => P.narrative[i])).size;
+    const tiles = [
+      [fmt.format(idx.length), "posts & comments", "Every post and comment on the map (empty texts are left out)" + (sub ? `, in r/${sub}.` : ".")],
+      [fmt.format(nT), "topics", "What people talk about: groups of related narratives, merged by meaning."],
+      [fmt.format(nN), "narratives", "What people argue: clusters of comments that make the same point, found with HDBSCAN on their embeddings."],
+      [pct(idx.length - clustered.length, idx.length) + "%", "unclustered (noise)", "Comments too short or too unique to belong to any narrative (jokes, one-word replies). Hidden on the map unless you tick Noise."],
+    ];
+    if (HAS_UP) tiles.push([fmt.format(idx.reduce((a, i) => a + (P.upvotes[i] || 0), 0)), "upvotes", "Sum of the upvotes of every item shown, as on Reddit when it was scraped."]);
+    if (HAS_AUTH) {
+      const a = authOf(idx);
+      tiles.push([a.score == null ? "–" : String(Math.round(a.score)), "authenticity score", AUTH_TIP + ` ${pct(a.n, idx.length)}% of these comments come from scored accounts.`]);
+      tiles.push([a.inauth == null ? "–" : pct(a.inauth, 1) + "%", "of scored engagement from uncertain or suspicious accounts",
+        "Engagement (log of upvotes + 1) of comments by accounts labelled uncertain or suspicious, as a share of all comments by scored accounts."]);
+    }
+    document.getElementById("tiles").replaceChildren(...tiles.map(([v, k, tipText]) => {
+      const t = el("div", {className: "tile", tabIndex: 0}, el("div", {className: "v", textContent: v}), el("div", {className: "k", textContent: k}));
+      t.dataset.tip = tipText; return t;
+    }));
+  }
   if (HAS_UP) document.getElementById("enc-up").hidden = false;
   if (HAS_AUTH) document.getElementById("enc-auth").hidden = false;
   if (HAS_UP || HAS_AUTH) {
@@ -433,29 +526,48 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
       ? " Big, solid clusters are narratives with a lot of engagement from accounts that look authentic; faint ones lean on low-scoring accounts."
       : " Dot size shows upvotes.";
   }
+  if (HAS_AUTH) {  // topic and narrative scores, computed once for the whole dataset
+    for (const t of DATA.topics) t._auth = authOf(idxBy(i => P.topic[i] === t.id));
+    for (const n of DATA.narratives) n._auth = authOf(idxBy(i => P.narrative[i] === n.id));
+  }
 
   // ------------------------------------------------------------ topic list
   const list = document.getElementById("topic-list");
-  const maxSize = Math.max(1, ...DATA.topics.map(t => t.size));
+  const topicSize = () => {  // items per topic within the subreddit filter
+    const c = new Map();
+    for (let i = 0; i < N; i++) if (P.topic[i] !== -1 && inSub(i)) c.set(P.topic[i], (c.get(P.topic[i]) || 0) + 1);
+    return c;
+  };
+  let sizes = topicSize();
   function renderTopicList(filter = "") {
     const q = filter.trim().toLowerCase();
     list.replaceChildren();
-    const shown = DATA.topics.filter(t => !q || t.label.toLowerCase().includes(q) ||
-      t.keywords.some(([w]) => w.includes(q)));
+    const shown = DATA.topics.filter(t => (sizes.get(t.id) || 0) > 0 && (!q || t.label.toLowerCase().includes(q) ||
+      t.keywords.some(([w]) => w.includes(q)) || (t.summary || "").toLowerCase().includes(q)))
+      .sort((a, b) => sizes.get(b.id) - sizes.get(a.id));
     if (!shown.length) { list.append(el("li", {className: "empty", textContent: "No matching topics"})); return; }
+    const maxSize = Math.max(1, ...shown.map(t => sizes.get(t.id)));
     for (const t of shown) {
-      const subs = t.subreddits.map(([s, c]) => `r/${s} ${Math.round(100 * c / t.size)}%`).join(" · ");
-      const btn = el("button", {type: "button"},
-        el("span", {className: "t-label", textContent: t.label}),
-        el("span", {className: "t-meta", textContent: `${fmt.format(t.size)} items · ${t.narratives.length} narrative${t.narratives.length > 1 ? "s" : ""}`}),
+      const size = sizes.get(t.id);
+      const subs = sub ? `${pct(size, t.size)}% of this topic is in r/${sub}`
+        : t.subreddits.map(([s, c]) => `r/${s} ${Math.round(100 * c / t.size)}%`).join(" · ");
+      const label = el("span", {className: "t-label", textContent: t.label});
+      if (t._auth) label.append(authChip(t._auth));
+      const btn = el("button", {type: "button"}, label,
+        el("span", {className: "t-meta", textContent: `${fmt.format(size)} items · ${t.narratives.length} narrative${t.narratives.length > 1 ? "s" : ""}`}),
         el("span", {className: "t-meta", textContent: subs}),
-        el("div", {className: "t-bar", style: `width:${Math.max(2, 100 * t.size / maxSize)}%`}));
+        el("div", {className: "t-bar", style: `width:${Math.max(2, 100 * size / maxSize)}%`}));
       btn.setAttribute("aria-pressed", String(t.id === selected));
       btn.addEventListener("click", () => select(t.id));
       list.append(el("li", {}, btn));
     }
   }
   document.getElementById("topic-search").addEventListener("input", e => renderTopicList(e.target.value));
+  subSel.addEventListener("change", () => {
+    sub = subSel.value; sizes = topicSize(); renderTiles();
+    const first = DATA.topics.filter(t => sizes.get(t.id)).sort((a, b) => sizes.get(b.id) - sizes.get(a.id))[0];
+    select(sizes.get(selected) ? selected : first ? first.id : null);
+  });
 
   // ------------------------------------------------------------------- map
   const hoverText = new Array(N);
@@ -469,14 +581,13 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     if (HAS_AUTH) extra.push(P.auth[i] == null ? "author not scored" : `author authenticity ${Math.round(P.auth[i])}/100 (${BAND_LABEL[P.band[i]]})`);
     hoverText[i] = `${head}<br><span style="font-size:11px">${who}${extra.length ? "<br>" + extra.join(" · ") : ""}</span><br><br>${words}`;
   }
-  const idxBy = pred => { const out = []; for (let i = 0; i < N; i++) if (pred(i)) out.push(i); return out; };
   const pick = (arr, idx) => idx.map(i => arr[i]);
 
   function traces() {
-    const noise = idxBy(i => P.narrative[i] === -1);
-    const other = idxBy(i => P.narrative[i] !== -1 && P.topic[i] !== selected);
-    const sel = idxBy(i => P.topic[i] === selected && P.narrative[i] !== hovered);
-    const hot = hovered === null ? [] : idxBy(i => P.narrative[i] === hovered);
+    const noise = idxBy(i => P.narrative[i] === -1 && inSub(i));
+    const other = idxBy(i => P.narrative[i] !== -1 && P.topic[i] !== selected && inSub(i));
+    const sel = idxBy(i => P.topic[i] === selected && P.narrative[i] !== hovered && inSub(i));
+    const hot = hovered === null ? [] : idxBy(i => P.narrative[i] === hovered && inSub(i));
     const mk = (idx, name, color, size, opacity) => {
       // big dots first so small ones stay visible on top
       if (sizeByUp) idx = [...idx].sort((a, b) => upR[b] - upR[a]);
@@ -596,10 +707,26 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     });
     canvas.addEventListener("mouseleave", () => { tip.hidden = true; });
   }
-  function cloudCard(title, meta, words, examples, cls) {
+  function summaryEl(text) {
+    const p = el("p", {className: "summary"}, el("span", {className: "ai-tag", textContent: "AI summary"}), text);
+    p.querySelector(".ai-tag").dataset.tip = "Written by an LLM (NVIDIA Nemotron) from this group's most representative comments. It describes the discussion; it isn't a fact-check.";
+    return p;
+  }
+  function cloudCard(title, meta, words, examples, cls, summary, auth, swatch) {
     const canvas = el("canvas", {role: "img", ariaLabel: `Word cloud: ${words.slice(0, 10).map(w => w[0]).join(", ")}`});
-    const card = el("div", {className: "card " + (cls || "")},
-      el("h4", {textContent: title}), el("div", {className: "meta", textContent: meta}), canvas);
+    const h = el("h4", {textContent: title});
+    if (swatch) h.prepend(el("span", {className: "sw", style: `background:${swatch}`}));
+    const head = [h, el("div", {className: "meta", textContent: meta})];
+    if (auth) head.push(el("div", {className: "authline"}, authChip(auth),
+      ...(auth.n >= MIN_SCORED ? [el("span", {textContent: `${pct(auth.inauth, 1)}% uncertain/suspicious · ${pct(auth.coverage, 1)}% of comments scored`})] : [])));
+    if (summary) head.push(summaryEl(summary));
+    let card;
+    if (cls === "topic-card") {
+      card = el("div", {className: "card topic-card" + (summary ? " has-summary" : "")},
+        el("div", {}, ...head), el("div", {className: "side-cloud"}, canvas));
+    } else {
+      card = el("div", {className: "card " + (cls || "") + (summary ? " has-summary" : "")}, ...head, canvas);
+    }
     if (examples && examples.length) {
       card.append(el("ul", {className: "examples"}, ...examples.map(ex =>
         el("li", {}, el("b", {textContent: "u/" + ex.author + ": "}), ex.text))));
@@ -613,10 +740,10 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     cloudsEl.replaceChildren();
     const t = topicById.get(selected);
     if (!t) { cloudsEl.append(el("p", {className: "empty", textContent: "No topics found."})); return; }
-    cloudsEl.append(cloudCard(`Topic: ${t.label}`, `${fmt.format(t.size)} items across ${t.narratives.length} narrative(s)`, t.keywords, null, "topic-card"));
-    for (const id of [...t.narratives].sort((a, b) => narrById.get(b).size - narrById.get(a).size)) {
+    cloudsEl.append(cloudCard(`Topic: ${t.label}`, `${fmt.format(t.size)} items across ${t.narratives.length} narrative(s)`, t.keywords, null, "topic-card", t.summary, t._auth));
+    for (const id of narrOrder(t)) {
       const n = narrById.get(id);
-      const card = cloudCard(n.label, `Narrative ${n.id} · ${fmt.format(n.size)} items` + (HAS_UP ? ` · ${fmt.format(n.upvotes)} upvotes` : ""), n.keywords, n.examples);
+      const card = cloudCard(n.label, `Narrative ${n.id} · ${fmt.format(n.size)} items` + (HAS_UP ? ` · ${fmt.format(n.upvotes)} upvotes` : ""), n.keywords, n.examples, "", n.summary, n._auth, narrColor(t, n.id));
       if (n.by_band) card.querySelector(".meta").after(...bandsBar(n.by_band));
       card.addEventListener("mouseenter", () => setHovered(n.id, card));
       card.addEventListener("mouseleave", () => setHovered(null, null));
@@ -624,6 +751,9 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     }
     redrawCanvases();
   }
+  const LINE_COLORS = ["#2a78d6", "#eb6834", "#1b9e77", "#8e5cd9", "#c99a06", "#d6457a", "#3aa6b9", "#7a8b3a"];
+  const narrOrder = t => [...t.narratives].sort((a, b) => narrById.get(b).size - narrById.get(a).size);
+  const narrColor = (t, id) => LINE_COLORS[narrOrder(t).indexOf(id) % LINE_COLORS.length];
   function bandsBar(by) {
     const tot = bandTotal(by);
     const bar = el("div", {className: "bands", tabIndex: 0});
@@ -634,20 +764,59 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
   }
   function redrawCanvases() { cloudsEl.querySelectorAll("canvas").forEach(c => layoutCloud(c, c._words)); }
 
+  // ------------------------------------------------------------- timeline
+  const tlEl = document.getElementById("timeline");
+  const BINS = [[300, "5 minutes"], [900, "15 minutes"], [1800, "30 minutes"], [3600, "hour"], [3 * 3600, "3 hours"], [6 * 3600, "6 hours"], [86400, "day"], [7 * 86400, "week"], [30 * 86400, "30 days"]];
+  function drawTimeline() {
+    const t = topicById.get(selected);
+    const idx = idxBy(i => inSub(i) && P.t[i] != null);
+    const note = document.getElementById("tl-note");
+    if (!window.Plotly || idx.length < 2) { tlEl.replaceChildren(el("p", {className: "empty", textContent: "No timestamps to plot."})); note.textContent = ""; return; }
+    const ts = idx.map(i => P.t[i]).sort((a, b) => a - b);
+    let lo = ts[0];
+    const hi = ts[ts.length - 1], q05 = ts[Math.floor(0.05 * (ts.length - 1))];
+    if (hi - q05 < (hi - lo) / 5) lo = q05;  // a long, thin tail of old items would flatten the chart
+    const old = ts.filter(x => x < lo).length;
+    const [bin, binName] = BINS.find(([b]) => (hi - lo) / b <= 72) || BINS[BINS.length - 1];
+    const start = Math.floor(lo / bin) * bin, nb = Math.floor((hi - start) / bin) + 1;
+    const xs = Array.from({length: nb}, (_, k) => new Date((start + k * bin) * 1000));
+    const count = pred => { const c = new Array(nb).fill(0); for (const i of idx) { const x = P.t[i]; if (x >= lo && pred(i)) c[Math.floor((x - start) / bin)]++; } return c; };
+    const traces = [{type: "scatter", mode: "lines", name: sub ? `All in r/${sub}` : "Whole discussion", x: xs, y: count(() => true),
+      line: {color: css("--context"), width: 1.5}, fill: "tozeroy", fillcolor: css("--surface-2"), hovertemplate: "%{y}<extra>%{fullData.name}</extra>"}];
+    if (t) for (const id of narrOrder(t)) {
+      const n = narrById.get(id), y = count(i => P.narrative[i] === id);
+      if (!y.some(Boolean)) continue;
+      traces.push({type: "scatter", mode: "lines", name: n.label, x: xs, y,
+        line: {color: narrColor(t, id), width: hovered === id ? 3.5 : 1.8},
+        opacity: hovered === null || hovered === id ? 1 : 0.35, hovertemplate: "%{y}<extra>%{fullData.name}</extra>"});
+    }
+    Plotly.react(tlEl, traces, {
+      margin: {l: 44, r: 12, t: 8, b: 30}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      font: {color: css("--ink-2"), size: 11}, hovermode: "x unified",
+      xaxis: {type: "date", gridcolor: css("--grid"), linecolor: css("--grid")},
+      yaxis: {title: {text: `comments per ${binName}`, font: {size: 11}}, gridcolor: css("--grid"), rangemode: "tozero", fixedrange: true},
+      legend: {orientation: "h", y: -0.18, font: {size: 11}},
+      hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}},
+    }, {responsive: true, displaylogo: false, modeBarButtonsToRemove: ["select2d", "lasso2d", "toImage", "autoScale2d"]});
+    document.getElementById("tl-sub").textContent = t ? `whole discussion and the narratives of “${t.label}”` : "";
+    note.textContent = (old ? `${fmt.format(old)} older item(s) before ${new Date(lo * 1000).toLocaleDateString()} aren't shown. ` : "") +
+      "Hover over a narrative card to highlight its line.";
+  }
+
   // ------------------------------------------------------------- behaviour
   function setHovered(id, card) {
     hovered = id;
     cloudsEl.querySelectorAll(".card.hot").forEach(c => c.classList.remove("hot"));
     if (card) card.classList.add("hot");
-    if (window.Plotly) Plotly.react(mapEl, traces(), layout(), plotConfig);
+    if (window.Plotly) { Plotly.react(mapEl, traces(), layout(), plotConfig); drawTimeline(); }
   }
   function select(id) {
     selected = id; hovered = null;
     const t = topicById.get(id);
     document.getElementById("sel-title").textContent = t ? t.label : "—";
-    document.getElementById("sel-sub").textContent = t ? `${fmt.format(t.size)} items · ${t.narratives.length} narrative(s)` : "";
+    document.getElementById("sel-sub").textContent = t ? `${fmt.format(sizes.get(t.id) || 0)} items${sub ? " in r/" + sub : ""} · ${t.narratives.length} narrative(s)` : "";
     renderTopicList(document.getElementById("topic-search").value);
-    drawMap(); drawClouds();
+    drawMap(); drawClouds(); drawTimeline();
   }
   document.getElementById("show-noise").addEventListener("change", e => { showNoise = e.target.checked; drawMap(); });
   document.getElementById("zoom-topic").addEventListener("change", e => { zoomToTopic = e.target.checked; drawMap(); });
@@ -665,6 +834,7 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
   document.addEventListener("focusin", e => { const t = e.target.closest("[data-tip]"); if (t) { const r = t.getBoundingClientRect(); showTip(t, r.left, r.bottom); } });
   document.addEventListener("focusout", () => { tip.hidden = true; });
 
+  renderTiles();
   select(selected);
   if (window.Plotly) {
     mapEl.on("plotly_click", ev => {
@@ -673,7 +843,7 @@ h3.section { font-size: 13px; color: var(--ink-2); text-transform: uppercase; le
     });
   }
   // Re-theme on OS or viewer theme change; relayout clouds on resize.
-  const rerender = () => { drawMap(); redrawCanvases(); };
+  const rerender = () => { drawMap(); redrawCanvases(); drawTimeline(); };
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
   new MutationObserver(rerender).observe(document.documentElement, {attributes: true, attributeFilter: ["data-theme"]});
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(redrawCanvases, 150); });

@@ -40,6 +40,9 @@ logger = logging.getLogger("candor.api")
 # Max concurrent analyses. Throughput is capped by the shared scrape limiter (SCRAPE_PER_MINUTE).
 EXECUTOR = ThreadPoolExecutor(max_workers=int(os.environ.get("ANALYSIS_WORKERS", "8")))
 MAX_ACTIVE_PER_IP = int(os.environ.get("MAX_ACTIVE_PER_IP", "3"))  # protects context.dev credits
+# A post analysed this recently is shown from the stored result instead of being re-scraped
+# (saves ~22 context.dev credits per repeat, e.g. the sample links on the Analyze tab).
+REUSE_S = float(os.environ.get("REUSE_HOURS", "12")) * 3600
 COOKIE = "candor_vid"
 COOKIE_MAX_AGE = 365 * 24 * 3600
 
@@ -130,6 +133,9 @@ def analyze_post(req: AnalyzeRequest, request: Request, response: Response) -> d
     if existing := store.find_active(post_id):  # someone is already analysing this post: join it
         store.link_visitor(vid, existing)
         return {"id": existing, "joined": True}
+    if recent := store.find_recent_done(post_id, REUSE_S):
+        store.link_visitor(vid, recent)
+        return {"id": recent, "joined": True, "reused": True}
     ip = _client_ip(request)
     if store.count_active_for_ip(ip) >= MAX_ACTIVE_PER_IP:
         raise HTTPException(429, f"You already have {MAX_ACTIVE_PER_IP} analyses running. Please wait for one to finish.")

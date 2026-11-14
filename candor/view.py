@@ -77,6 +77,7 @@ def narrative_buckets(all_items, result, profiles: dict) -> list[dict]:
             "share": round(len(cs) / max(len(clustered), 1), 3),
             "weighted_share": round(sum(weight[c.comment_id] for c in cs) / total_w, 3),
             "keywords": [k.word for k in n.keywords[:8]] if n else [],
+            "summary": n.summary if n else None,
             "n_scored": len(scored),
             "mean_score": round(sum(scored) / len(scored), 1) if scored else None,
             "flagged": sorted(flagged),

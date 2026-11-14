@@ -126,3 +126,11 @@ def test_history_backfills_distribution(client):
     store.write_json(aid, "view.json", {"narratives": [{"id": 0, "label": "a", "weighted_share": 1.0}]})
     h = client.get("/api/history").json()["analyses"]
     assert h[0]["summary"]["narratives"] == [{"id": 0, "label": "a", "share": 1.0}]
+
+
+def test_recent_result_is_reused(client):
+    url = "https://www.reddit.com/r/x/comments/1abc22/t/"
+    first = client.post("/api/analyze", json={"url": url}).json()["id"]
+    _wait(client, first)
+    again = client.post("/api/analyze", json={"url": url}).json()
+    assert again["id"] == first and again.get("reused")

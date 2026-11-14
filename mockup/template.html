@@ -109,10 +109,6 @@ header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom
 .crit-list{font-size:12px;margin:0;padding:0;list-style:none}
 .crit-list li{display:grid;grid-template-columns:28px 1fr 38px;gap:6px;padding:4px 0;border-top:1px solid var(--border-soft);align-items:center}
 .crit-list li:first-child{border-top:0}
-.flagged{list-style:none;margin:0;padding:0}
-.flagged li{padding:8px 0;border-top:1px solid var(--border-soft);font-size:13px}
-.flagged li:first-child{border-top:0}
-.flagged .why{font-size:12px;color:var(--muted);margin-top:2px}
 .slider{width:100%}
 
 /* popover */
@@ -176,6 +172,29 @@ header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom
 .prog .btn{display:inline-block;margin-top:14px;border:0;border-radius:16px;padding:7px 16px;background:var(--link);color:#fff;font-weight:700;cursor:pointer}
 .steps{margin:14px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
 .steps li{margin:4px 0}
+.steps li.now{color:var(--text);font-weight:600}
+.steps li.done{color:var(--ok)}
+/* loading dancer */
+.dance{display:flex;justify-content:center;margin:6px 0 14px;position:relative;height:150px}
+.dancer{width:120px;height:150px;overflow:visible}
+.dancer .bob{animation:bob .5s ease-in-out infinite alternate;transform-origin:60px 120px}
+.dancer .armL{animation:armL .5s ease-in-out infinite alternate;transform-origin:38px 74px}
+.dancer .armR{animation:armR .5s ease-in-out infinite alternate;transform-origin:82px 74px}
+.dancer .legL{animation:legL 1s ease-in-out infinite;transform-origin:50px 112px}
+.dancer .legR{animation:legR 1s ease-in-out infinite;transform-origin:70px 112px}
+.dancer .pupil{animation:look 2s ease-in-out infinite}
+.dancer .lens{animation:glint 1s ease-in-out infinite alternate}
+.note{position:absolute;font-size:18px;color:var(--link);opacity:0;animation:note 2s linear infinite}
+.note.n1{left:calc(50% + 46px);top:30px}.note.n2{left:calc(50% - 70px);top:50px;animation-delay:.7s}.note.n3{left:calc(50% + 60px);top:80px;animation-delay:1.3s}
+@keyframes bob{from{transform:translateY(0) rotate(-6deg)}to{transform:translateY(-8px) rotate(6deg)}}
+@keyframes armL{from{transform:rotate(30deg)}to{transform:rotate(-50deg)}}
+@keyframes armR{from{transform:rotate(40deg)}to{transform:rotate(-30deg)}}
+@keyframes legL{0%,100%{transform:rotate(0)}50%{transform:rotate(18deg)}}
+@keyframes legR{0%,100%{transform:rotate(-18deg)}50%{transform:rotate(0)}}
+@keyframes look{0%,40%{transform:translateX(-2px)}50%,90%{transform:translateX(2px)}100%{transform:translateX(-2px)}}
+@keyframes glint{from{opacity:.25}to{opacity:.7}}
+@keyframes note{0%{opacity:0;transform:translateY(10px) rotate(0)}20%{opacity:1}100%{opacity:0;transform:translateY(-50px) rotate(20deg)}}
+@media (prefers-reduced-motion:reduce){.dancer *,.note{animation:none!important}}
 /* tooltips for numbers ([data-tip]) */
 [data-tip]{cursor:help}
 button[data-tip],a[data-tip],.badge[data-tip]{cursor:pointer}
@@ -277,7 +296,6 @@ const tip = t => ` data-tip="${esc(t)}"`;
 const TIP = {
   score: "Authenticity score, 0–100: a weighted sum of five criteria (C1–C5). 70+ = likely authentic, 40–69 = uncertain, below 40 = suspicious. A red flag (any criterion at 20% or less) caps the label at uncertain.",
   postVotes: "The post's score on Reddit when we scraped it (upvotes minus downvotes).",
-  cmtVotes: "This comment's score on Reddit when we scraped it. Higher-scored comments count more towards their narrative's share.",
   weight: "Weight: this criterion's share of the overall score. The five weights add up to 100.",
   critPct: "How this account did on this criterion: 100% = no warning signs. Each signal listed below takes points off.",
   pts: "Points this signal took off the criterion's 100.",
@@ -381,7 +399,7 @@ function postCard(t, full){
       <div class="meta"><span class="sub">r/${esc(t.sub)}</span><span>•</span>${by}<span>${ago(t.posted_at)}</span></div>
       <h2>${esc(t.title)}</h2>${dom}${body}
       ${full && LIVE() ? pill() : ""}
-      <div class="actions"><span${tip(LIVE() ? `Comments Reddit reports for this thread. We captured ${t.comments.length}${DATA.meta.reported_comments>t.comments.length?" (Reddit only renders the top of large threads)":""}.` : "Comments in this thread from accounts in the dataset.")}>💬 ${n} Comments</span>${health(t)}</div>
+      <div class="actions"><span>💬 ${n} Comments</span>${health(t)}</div>
     </div></article>`;
 }
 function renderFeed(){
@@ -419,7 +437,7 @@ function renderThread(id){
       ${state.shield?warnFor(c.author):""}
       ${c.orphan?`<div class="orphan">↳ reply to a comment from an account outside the dataset</div>`:""}
       <div class="text">${md(c.body)}</div>
-      <div class="foot"><span${tip(TIP.cmtVotes)}>▲ ${fmt(c.score)} ▼</span><span>Reply</span><span>Share</span></div>
+      <div class="foot"><span>▲ ${fmt(c.score)} ▼</span><span>Reply</span><span>Share</span></div>
       ${c.kids.length?`<div class="children">${c.kids.map(node).join("")}</div>`:""}
     </div>`;
   };
@@ -450,11 +468,6 @@ function renderSide(){
   const leg = order.map(k=>`<i style="background:${color(LV[k])}"></i><span>${LABEL[k]}</span><b class="num"${tip(`${lc[k]||0} accounts labelled ${LABEL[k].toLowerCase()}: ${BAND[k]}.`)}>${lc[k]||0}</b>`).join("");
   const CDESC = {C1:"C1 Account profile: is this an established, real person?", C2:"C2 Content originality: did this person write it?", C3:"C3 Coordination: is it acting in concert with others?", C4:"C4 Engagement legitimacy: did it earn its karma?", C5:"C5 Behavioural history: does the account do this elsewhere?"};
   const crit = ["C1","C2","C3","C4","C5"].map(k=>`<li><b>${k}</b><span${tip(CDESC[k]+" "+TIP.weight)}>${CRIT[k]} <span style="color:var(--muted)">(w${W[k]})</span></span><span class="num" style="text-align:right"${tip(`Average ${k} score across the ${s.scored} scored accounts. 100% = no warning signs.`)}>${s.mean_criterion_pct[k]}%</span></li>`).join("");
-  const flagged = Object.entries(P).filter(([u,p])=>["uncertain","suspicious"].includes(p.label)).sort((a,b)=>(a[1].score??0)-(b[1].score??0));
-  const fl = flagged.map(([u,p])=>{
-    const why = Object.values(p.criteria).flatMap(c=>c.signals).sort((a,b)=>a.points-b.points).slice(0,2).map(x=>x.why).join(" · ");
-    return `<li>${user(u)}<div class="why">${esc(why)}</div></li>`;
-  }).join("");
   document.getElementById("side").innerHTML = (LIVE() ? narrativesCard() : "") + `
     <div class="card" id="shieldCard"><div class="hd shield">🛡️ Authenticity Shield</div><div class="bd">
       <p>${LIVE() ? "The thread's most engaged commenters are" : "Every account here is"} scored 0–100 on five signals of authentic behaviour. Click any badge to see why.</p>
@@ -466,7 +479,6 @@ function renderSide(){
       <label for="thr" style="font-size:13px">Collapse comments from accounts scoring below <b id="thrv">${state.threshold||"off"}</b></label>
       <input class="slider" id="thr" type="range" min="0" max="95" step="5" value="${state.threshold}">
     </div></div>
-    <div class="card" id="flaggedCard"><div class="hd">⚠ Flagged accounts</div><div class="bd">${fl ? `<ul class="flagged">${fl}</ul>` : `<p style="margin:0;font-size:13px;color:var(--muted)">No scored account is flagged as uncertain or suspicious.</p>`}</div></div>
     <div class="card"><div class="bd" style="font-size:12px;color:var(--muted)">
       <b style="color:var(--text)">How to read a badge</b><br>✓/⚠ + overall score, then five bars for C1–C5. A short bar means that criterion lost points; a dot means it couldn't be assessed (e.g. hidden history). A low score is a reason to check sources, not proof of a bot.
     </div></div>` + (LIVE() ? notesCard() : "");
@@ -712,16 +724,49 @@ function demoTour(){ return [
   {sel:".post .thread-health", title:"Thread health", body:`<p>One dot per scored participant, coloured by their label, and how many are flagged.</p>`},
   {sel:".sortbar", title:"Sort the feed", body:`<p><b>Most flagged</b> brings the threads with the most uncertain or suspicious participants to the top.</p>`},
   {sel:"#shieldCard", title:"Authenticity Shield", body:`<p>How all scored accounts split by label, and the average score on each criterion.</p>`},
-  {sel:"#flaggedCard", title:"Flagged accounts", body:`<p>Accounts labelled uncertain or suspicious, with the main reasons.</p>`},
   {title:"Try it live", body:`<p>Paste any Reddit thread on the Analyze tab: Candor maps its narratives and scores its most engaged commenters in 1–2 minutes.</p>`, action:{label:"Analyze a post →", href:"/"}},
 ];}
 
 /* ---------- live analyses: ?id=<analysis> ---------- */
 const AID = new URLSearchParams(location.search).get("id");
+const DANCER = `<div class="dance" aria-hidden="true">
+  <svg class="dancer" viewBox="0 0 120 150">
+    <ellipse cx="60" cy="144" rx="30" ry="4" fill="currentColor" opacity=".12"/>
+    <g class="legL"><path d="M50 110 L44 136 L36 138" stroke="#14182b" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g class="legR"><path d="M70 110 L76 136 L84 138" stroke="#14182b" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+    <g class="bob">
+      <g class="armL"><path d="M38 74 L18 60 L12 44" stroke="#14182b" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+      <g class="armR"><path d="M82 74 L100 62" stroke="#14182b" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <line x1="100" y1="62" x2="108" y2="54" stroke="#14182b" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="112" cy="46" r="10" fill="#fff" stroke="#14182b" stroke-width="4"/><circle class="lens" cx="109" cy="43" r="3" fill="#3662e3"/></g>
+      <rect x="32" y="40" width="56" height="74" rx="28" fill="#3662e3"/>
+      <rect x="40" y="88" width="40" height="8" rx="4" fill="#1f9d55" opacity=".9"/>
+      <rect x="40" y="99" width="40" height="8" rx="4" fill="#e03e3e" opacity=".9"/>
+      <circle cx="50" cy="62" r="9" fill="#fff"/><circle cx="70" cy="62" r="9" fill="#fff"/>
+      <g class="pupil"><circle cx="51" cy="63" r="4" fill="#14182b"/><circle cx="71" cy="63" r="4" fill="#14182b"/></g>
+      <path d="M52 77 Q60 84 68 77" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M44 42 Q60 22 76 42" fill="#14182b"/><rect x="40" y="38" width="40" height="6" rx="3" fill="#14182b"/>
+    </g>
+  </svg><span class="note n1">♪</span><span class="note n2">♫</span><span class="note n3">♪</span></div>`;
+// progress range of each pipeline step (candor/live.py); profiles and narratives run in parallel
+const STEP_AT = [[0,.30],[.30,.80],[.30,.80],[.80,1.01]];
 function progressView(a){
   const pct = Math.round((a.progress||0)*100);
   const err = a.status==="error";
-  document.getElementById("main").innerHTML = `<div class="card prog">
+  const live = document.querySelector(".prog[data-running]");
+  if(!err && live){  // update in place so the dancer keeps dancing between polls
+    live.querySelector("h2").textContent = a.status==="queued" ? "Queued…" : "Analysing this thread…";
+    live.querySelector(".url").textContent = a.title || a.canonical_url || "";
+    live.querySelector(".track span").style.width = pct + "%";
+    live.querySelector(".track").setAttribute("aria-valuenow", pct);
+    live.querySelector(".msg").textContent = `${pct}% · ${a.message||""}`;
+    live.querySelectorAll(".steps li").forEach((li,i)=>{
+      const p = a.progress||0, [from, to] = STEP_AT[i];
+      li.className = p >= to ? "done" : p >= from ? "now" : "";
+    });
+    return;
+  }
+  document.getElementById("main").innerHTML = `<div class="card prog"${err?"":" data-running"}>${err?"":DANCER}
     <h2>${err ? "Analysis failed" : a.status==="queued" ? "Queued…" : "Analysing this thread…"}</h2>
     <div class="url">${esc(a.title || a.canonical_url || "")}</div>
     ${err ? `<div class="msg err">${esc(a.error||"Unknown error")}</div>${a.url?`<button class="btn" data-retry="${esc(a.url)}">Try again</button>`:""}`
@@ -731,6 +776,7 @@ function progressView(a){
              <p style="font-size:12px;color:var(--muted);margin:12px 0 0">Usually 1–2 minutes. You can close this page; it stays under <a href="/">Your analyses</a>.</p>`}
   </div>`;
   document.getElementById("side").innerHTML = "";
+  if(!err) progressView(a);  // mark the current step
 }
 async function retryAnalysis(url){
   const r = await fetch("/api/analyze", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({url})});

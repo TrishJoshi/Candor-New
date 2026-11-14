@@ -101,6 +101,13 @@ nav{flex-wrap:wrap;gap:10px}
 .npill-leg em{font-style:normal;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
 .npill-leg i{width:8px;height:8px;border-radius:50%;flex:none}
 .npill-leg b{color:var(--text);font-weight:600}
+.samples{display:flex;flex-direction:column;gap:6px;margin-top:2px}
+.samples .lbl{font-size:13px;color:var(--muted)}
+.sample{all:unset;box-sizing:border-box;display:flex;gap:8px;align-items:baseline;cursor:pointer;border:1px solid var(--border);border-radius:10px;padding:8px 12px;font-size:14px;color:var(--text)}
+.sample:hover{border-color:var(--blue);background:var(--blue-soft)}
+.sample:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.sample .sub{font-weight:600;color:var(--blue);white-space:nowrap}
+.sample .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .tour-btn{color:var(--muted)!important}
 </style>
@@ -144,6 +151,11 @@ nav{flex-wrap:wrap;gap:10px}
         <button class="btn blue" type="submit">Analyze</button>
       </form>
       <div class="hint" id="hint" role="alert"></div>
+      <div class="samples" id="samples">
+        <span class="lbl">No link handy? Try one of these:</span>
+        <button class="sample" type="button" data-url="https://www.reddit.com/r/Damnthatsinteresting/comments/1xvkpfd/a_man_trying_to_get_his_old_job_back_2700_years/"><span class="sub">r/Damnthatsinteresting</span><span class="t">A man trying to get his old job back, 2,700 years later</span></button>
+        <button class="sample" type="button" data-url="https://www.reddit.com/r/trump/comments/h9unhb/youre_not_alone/"><span class="sub">r/trump</span><span class="t">You're not alone</span></button>
+      </div>
     </section>
   </div>
 
@@ -195,6 +207,10 @@ form.addEventListener('submit', async e => {
     hint.textContent = err.message === 'Failed to fetch' ? 'The live API is offline right now.' : err.message;
     btn.disabled = false; btn.textContent = 'Analyze';
   }
+});
+document.getElementById('samples').addEventListener('click', e => {
+  const b = e.target.closest('[data-url]'); if (!b || btn.disabled) return;
+  input.value = b.dataset.url; hint.textContent = ''; form.requestSubmit();
 });
 const prefill = new URLSearchParams(location.search).get('url');
 if (prefill) input.value = prefill;
@@ -260,6 +276,7 @@ fetch('api/health').then(r => r.ok ? r.json() : Promise.reject())
 CandorTour.setup({key: 'candor_tour_home', steps: () => [
   {title: 'Welcome to Candor', body: `<p>Candor shows <b>which narratives get the attention</b> in a Reddit thread, and <b>whether the accounts pushing them look authentic</b>.</p><p>This short tour walks you through it, from pasting a link to reading the result. You can reopen it any time with <b>? Tutorial</b>.</p>`},
   {sel: '#live', title: '1. Paste a Reddit link', body: `<p>Copy the address of any public Reddit post (<code>reddit.com/r/…/comments/…</code>), paste it here and press <b>Analyze</b>.</p>`},
+  {sel: '#samples', title: 'No link handy?', body: `<p>Click one of these sample threads to analyse it straight away.</p>`},
   {sel: '.mode.live', title: '2. Candor analyses it (1–2 min)', body: `<ol><li>Scrapes the thread and its comments.</li><li>Scrapes the profiles of the most engaged commenters.</li><li>Groups the comments into <b>narratives</b> by meaning (Gemini embeddings) and names them (NVIDIA Nemotron).</li><li>Scores each account's <b>authenticity</b>, 0–100, on five criteria.</li></ol><p>You'll see a progress bar; you can close the page meanwhile.</p>`},
   {sel: '.history', title: '3. Come back any time', body: `<p>Every analysis you run is saved here, in this browser, with its <b>narrative distribution</b>: the thread's top narratives and their share of the engagement.</p>`},
   {sel: '.mode.demo', title: 'Or browse the demo', body: `<p>A feed of threads we've already analysed, where every account carries its authenticity score.</p>`},

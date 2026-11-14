@@ -38,6 +38,10 @@ def rebuild_map(analysis_id: str) -> None:
     old = d / "map.html"
     if old.exists() and (m := re.search(r'"labels":"LLM \(([^)"]+)\)"', old.read_text(encoding="utf-8"))):
         model = m.group(1)
+    if not any(n.summary for n in result.narratives):  # runs from before AI summaries existed
+        from candor.labeling import add_summaries, default_labeler
+        if add_summaries(result, default_labeler()):
+            store.write_json(analysis_id, "stage2.json", result.model_dump())
     live.write_map(analysis_id, post, result, embeddings, cfg, scores, model)
 
 

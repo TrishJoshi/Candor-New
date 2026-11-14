@@ -45,6 +45,7 @@ class NarrativeSummary(BaseModel):
     size: int
     representative_comment_ids: List[str]
     keywords: List[Keyword] = []
+    summary: Optional[str] = None  # AI summary (candor.labeling.add_summaries)
 
 
 class TopicSummary(BaseModel):
@@ -55,6 +56,7 @@ class TopicSummary(BaseModel):
     narrative_ids: List[int]
     size: int
     keywords: List[Keyword] = []
+    summary: Optional[str] = None  # AI summary (candor.labeling.add_summaries)
 
 
 class ProcessingResult(BaseModel):

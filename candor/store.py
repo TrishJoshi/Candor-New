@@ -127,6 +127,16 @@ def find_active(post_id: str) -> str | None:
     return row["id"] if row else None
 
 
+def find_recent_done(post_id: str, max_age_s: float) -> str | None:
+    """A finished analysis of this post younger than ``max_age_s`` (shown instead of re-running)."""
+    if max_age_s <= 0:
+        return None
+    with _db() as c:
+        row = c.execute("SELECT id FROM analyses WHERE post_id = ? AND status = 'done' AND finished_at >= ? "
+                        "ORDER BY finished_at DESC LIMIT 1", (post_id, time.time() - max_age_s)).fetchone()
+    return row["id"] if row else None
+
+
 def count_active_for_ip(client_ip: str) -> int:
     with _db() as c:
         return c.execute("SELECT COUNT(*) FROM analyses WHERE client_ip = ? AND status IN ('queued', 'running')",
