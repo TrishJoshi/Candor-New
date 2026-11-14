@@ -77,3 +77,13 @@ def test_hidden_history_and_failed_fetch():
     by = {p["username"]: p for p in S.score_live(accounts, [], "x", ["a", "b"], cohort=COHORT)["profiles"]}
     assert by["gone"]["authenticity_label"] == "no_data"
     assert any(s["signal"] == "history_hidden" for s in by["hidden"]["criteria"]["C5"]["signals"])
+
+
+def test_topic_keywords_skip_words_common_in_background():
+    from candor.scoring import topic_keywords
+    thread = ["Duffy wants fifty billion for FAA upgrades", "Palantir and Thiel get the FAA contract",
+              "trump trump duffy billion contract"] * 3
+    background = ["trump said something today"] * 10 + [f"unrelated chat about cooking {i}" for i in range(90)]
+    kw = topic_keywords(thread, background)
+    assert "trump" not in kw            # in 10% of the commenters' other posts
+    assert {"duffy", "palantir"} <= set(kw)

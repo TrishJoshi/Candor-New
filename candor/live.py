@@ -1,35 +1,43 @@
-"""Live analysis of one Reddit post: scrape (Stage 1) -> spatial engine (Stage 2) -> report.
+"""Live analysis of one Reddit post: the whole pipeline for a pasted link.
 
-    analyze(url, progress) -> dict   (called by candor.api in a worker thread)
+    analyze(analysis_id, url, progress) -> summary dict     (run by candor.api in a worker thread)
 
-Writes, per run:
-    web/reports/<post>-<stamp>.html   the Narrative Map, same page as narrative-buckets/out/stage2_report_*.html
-    data/live/<post>-<stamp>/post.json     base-format scrape (input for Stage 3 account scoring)
-    data/live/<post>-<stamp>/stage2.json   ProcessingResult
+  1. scrape thread       candor/scrape.py     1 context.dev call (JSON extraction + rendered HTML)
+  2. flatten + filter    narrative-buckets    drop bots and deleted comments
+  3. in parallel:
+     a. profiles         candor/profiles.py   top MAX_AUTHORS commenters, context.dev reddit-user parser
+     b. narratives       narrative-buckets    Gemini embeddings -> UMAP -> HDBSCAN -> NVIDIA labels
+  4. score accounts      candor/scoring.py    profile_authenticity_scorer, live mode
+  5. outputs             candor/view.py       Reddit mockup data + narrative map
+Every artifact is stored in data/analyses/<id>/ (see candor/store.py).
 
 Run without the API:  python -m candor.live <reddit_url>
 """
 from __future__ import annotations
 
-import json
 import logging
-import math
 import os
 import threading
 import time
-from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Callable
 
 ROOT = Path(__file__).resolve().parent.parent
-REPORTS = ROOT / "web" / "reports"
-RUNS = ROOT / "data" / "live"
 BOTS = {"automoderator", "remindmebot", "sneakpeekbot", "[deleted]", "[removed]"}
 MIN_ITEMS = 8  # below this there is nothing to cluster
+MAX_AUTHORS = int(os.environ.get("MAX_AUTHORS", "20"))
+PROFILE_DEADLINE_S = float(os.environ.get("PROFILE_DEADLINE_S", "120"))
 # Numba's default threading layer aborts the whole process ("Concurrent access has been detected")
 # when two threads run UMAP/HDBSCAN at once, e.g. two concurrent jobs or a job during warmup.
 # Only the numba steps are serialised; embedding and LLM labelling still overlap across jobs.
 NUMBA_LOCK = threading.Lock()
+
+logger = logging.getLogger(__name__)
+
+
+class AnalysisError(Exception):
+    """A failure whose message is safe and useful to show to the visitor."""
 
 
 def _locked(fn):
@@ -37,8 +45,6 @@ def _locked(fn):
         with NUMBA_LOCK:
             return fn(*args, **kwargs)
     return run
-
-logger = logging.getLogger(__name__)
 
 
 def _load_env() -> None:
@@ -55,10 +61,14 @@ def _load_env() -> None:
 
 _load_env()
 
+from candor import store  # noqa: E402
 from candor.ingest import flatten_reddit_posts  # noqa: E402  (narrative-buckets, via candor.__path__)
+from candor.profiles import pick_authors, scrape_profiles  # noqa: E402
 from candor.schemas import NOISE_ID  # noqa: E402
+from candor.scoring import score_thread  # noqa: E402
 from candor.scrape import scrape_thread  # noqa: E402
 from candor.spatial_engine import SpatialEngine, SpatialEngineConfig  # noqa: E402
+from candor.view import build_view  # noqa: E402
 from candor.visualize import write_report  # noqa: E402
 
 
@@ -72,92 +82,109 @@ def engine_config(n: int) -> SpatialEngineConfig:
     )
 
 
-def engagement_weight(upvotes: int | None, replies: int) -> float:
-    return math.log1p(max(upvotes or 0, 0)) + 0.5 * math.log1p(replies)
+class _Progress:
+    """Progress for steps that run in parallel: never goes backwards, joins their messages."""
+
+    def __init__(self, cb: Callable[[float, str], None]) -> None:
+        self.cb, self.pct, self.parts, self.lock = cb, 0.0, {}, threading.Lock()
+
+    def __call__(self, pct: float, message: str, part: str = "main") -> None:
+        with self.lock:
+            self.pct = max(self.pct, min(pct, 0.99))
+            if part == "main":
+                self.parts = {}
+            else:
+                self.parts.pop("main", None)  # parallel steps replace the previous step's message
+            self.parts[part] = message
+            self.cb(round(self.pct, 3), " · ".join(self.parts.values()))
 
 
-def summarise(post: dict, result) -> dict:
-    """Narrative buckets as JSON for the job response (Stage 3 adds account scores to these)."""
-    comments = [c for c in result.comments if getattr(c, "kind", "") == "comment"]
-    n_replies = defaultdict(int)
-    for c in comments:
-        n_replies[getattr(c, "parent_id", None)] += 1
-    weight = {c.comment_id: engagement_weight(getattr(c, "upvote_count", 0), n_replies[c.comment_id]) for c in comments}
-    total_w = sum(weight.values()) or 1.0
-    groups = defaultdict(list)
-    for c in comments:
-        groups[c.narrative_id].append(c)
-    labels = {n.narrative_id: n for n in result.narratives}
-    topics = {t.topic_id: t.label for t in result.topics}
-    buckets = []
-    for nid, cs in groups.items():
-        n = labels.get(nid)
-        top = sorted(cs, key=lambda c: -weight[c.comment_id])[:6]
-        buckets.append({
-            "id": nid,
-            "label": n.label if n else "Other / short replies",
-            "topic": topics.get(n.topic_id) if n else None,
-            "n_comments": len(cs),
-            "share": round(len(cs) / len(comments), 3),
-            "weighted_share": round(sum(weight[c.comment_id] for c in cs) / total_w, 3),
-            "keywords": [k.word for k in n.keywords[:8]] if n else [],
-            "top_comments": [{"id": c.comment_id, "author": c.author, "body": c.text[:500],
-                              "upvotes": getattr(c, "upvote_count", None), "n_replies": n_replies[c.comment_id],
-                              "engagement_weight": round(weight[c.comment_id], 3)} for c in top],
-        })
-    buckets.sort(key=lambda b: (b["id"] == NOISE_ID, -b["weighted_share"]))
+def analyze(analysis_id: str, url: str, progress: Callable[[float, str], None] = lambda p, m: None) -> dict:
+    t0 = time.time()
+    prog = _Progress(progress)
+
+    # 1. thread ---------------------------------------------------------------------------
+    prog(0.03, "Scraping the thread with context.dev (~30-60 s)")
+    try:
+        post = scrape_thread(url)
+    except Exception as e:
+        logger.exception("thread scrape failed")
+        if "rate limit" in str(e).lower() or "RATE_LIMITED" in str(e):
+            raise AnalysisError("Reddit scraping is rate-limited right now. Please try again in a minute.") from e
+        raise AnalysisError("We couldn't load this Reddit post (deleted, private or quarantined?).") from e
+    store.write_json(analysis_id, "post.json", post)
+    store.update(analysis_id, title=post.get("title"), subreddit=post.get("subreddit"))
+    t_scrape = time.time() - t0
+
+    # 2. items -----------------------------------------------------------------------------
+    all_items = flatten_reddit_posts([post])
+    items = [c for c in all_items
+             if c.author.lower() not in BOTS and c.text.strip() not in ("", "[deleted]", "[removed]")]
+    if len(items) < MIN_ITEMS:
+        raise AnalysisError(f"Only {len(items)} readable comments on this post; we need at least {MIN_ITEMS}.")
+    authors = pick_authors(items, MAX_AUTHORS)
+
+    # 3. profiles (background) || narratives (this thread) -----------------------------------
+    prog(0.30, f"Scraping {len(authors)} commenter profiles", "profiles")
+    with ThreadPoolExecutor(1) as ex:
+        fut = ex.submit(scrape_profiles, authors,
+                        lambda d, n: prog(0.30 + 0.45 * d / max(n, 1), f"Profiles {d}/{n}", "profiles"),
+                        PROFILE_DEADLINE_S)
+        prog(0.32, f"Embedding {len(items)} comments (Gemini)", "narratives")
+        cfg = engine_config(len(items))
+        engine = SpatialEngine(cfg)
+        engine._reduce = _locked(engine._reduce)  # UMAP
+        engine._cluster_narratives = _locked(engine._cluster_narratives)  # HDBSCAN
+        embeddings = engine.embed(items)
+        prog(0.40, "Clustering and naming narratives (NVIDIA)", "narratives")
+        result = engine.process(items, embeddings=embeddings)
+        prog(0.45, f"{len(result.narratives)} narratives found", "narratives")
+        store.write_json(analysis_id, "stage2.json", result.model_dump())
+        accounts = fut.result()
+    store.write_json(analysis_id, "accounts.json", accounts)
+
+    # 4. scores ------------------------------------------------------------------------------
+    prog(0.80, "Scoring account authenticity")
+    scores = score_thread(post, items, accounts)
+    store.write_json(analysis_id, "scores.json", scores)
+
+    # 5. outputs -----------------------------------------------------------------------------
+    prog(0.90, "Building the Reddit view and narrative map")
+    model = getattr(engine.labeler, "model", None)
+    _locked(write_report)(result, embeddings, store.run_dir(analysis_id) / "map.html", cfg,  # 2D UMAP inside
+                          source=f"r/{post.get('subreddit')} · {(post.get('title') or '')[:90]}",
+                          labels_source=f"LLM ({model})" if model else "c-TF-IDF keywords")
+    warnings = _warnings(post, accounts, model)
+    view = build_view(analysis_id, post, all_items, result, scores, accounts, warnings,
+                      map_url=f"/api/analyses/{analysis_id}/map")
+    store.write_json(analysis_id, "view.json", view)
+
+    s = scores["summary"]
+    top = next((n for n in view["narratives"] if n["id"] != NOISE_ID), None)
     return {
-        "post": {k: post.get(k) for k in ("post_id", "title", "subreddit", "author", "upvote_count", "permalink",
-                                          "reported_comment_count", "captured_comment_count")},
-        "buckets": buckets,
+        "n_comments": sum(getattr(c, "kind", "") == "comment" for c in all_items),
         "n_narratives": len(result.narratives),
-        "n_noise": sum(c.narrative_id == NOISE_ID for c in comments),
-        "warnings": [w for w in [
-            None if post.get("scores_from_html") else "Comment scores unavailable; weights use replies only",
-            f"Captured {post.get('captured_comment_count')} of {post.get('reported_comment_count')} comments "
-            "(Reddit renders only the top of large threads)"
-            if (post.get("reported_comment_count") or 0) > (post.get("captured_comment_count") or 0) else None,
-        ] if w],
+        "top_narrative": top["label"] if top else None,
+        "n_scored": s.get("scored", 0),
+        "mean_score": s.get("mean_score"),
+        "label_counts": s.get("label_counts", {}),
+        "timing_s": {"scrape": round(t_scrape, 1), "total": round(time.time() - t0, 1)},
     }
 
 
-def analyze(url: str, progress: Callable[[float, str], None] = lambda p, m: None) -> dict:
-    t0 = time.time()
-    progress(0.05, "Scraping the thread with context.dev (~40-60 s)")
-    post = scrape_thread(url)
-    t_scrape = time.time() - t0
-
-    items = [c for c in flatten_reddit_posts([post])
-             if c.author.lower() not in BOTS and c.text.strip() not in ("", "[deleted]", "[removed]")]
-    if len(items) < MIN_ITEMS:
-        raise ValueError(f"Only {len(items)} readable comments on this post; need at least {MIN_ITEMS}.")
-
-    progress(0.55, f"Embedding {len(items)} comments")
-    cfg = engine_config(len(items))
-    engine = SpatialEngine(cfg)
-    engine._reduce = _locked(engine._reduce)  # UMAP
-    engine._cluster_narratives = _locked(engine._cluster_narratives)  # HDBSCAN
-    embeddings = engine.embed(items)
-    progress(0.65, "Clustering narratives and labelling them")
-    result = engine.process(items, embeddings=embeddings)
-
-    progress(0.92, "Building the narrative map")
-    stamp = time.strftime("%Y%m%d-%H%M%S")
-    name = f"{post['post_id']}-{stamp}"
-    REPORTS.mkdir(parents=True, exist_ok=True)
-    run_dir = RUNS / name
-    run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "post.json").write_text(json.dumps([post], ensure_ascii=False, indent=1), encoding="utf-8")
-    (run_dir / "stage2.json").write_text(result.model_dump_json(indent=1), encoding="utf-8")
-    model = getattr(engine.labeler, "model", None)
-    _locked(write_report)(result, embeddings, REPORTS / f"{name}.html", cfg,  # 2D UMAP inside
-                 source=f"r/{post['subreddit']} · {post['title'][:90]}",
-                 labels_source=f"LLM ({model})" if model else "c-TF-IDF keywords")
-
-    report = summarise(post, result)
-    report["report_url"] = f"/reports/{name}.html"
-    report["timing_s"] = {"scrape": round(t_scrape, 1), "total": round(time.time() - t0, 1)}
-    return report
+def _warnings(post: dict, accounts: dict, model: str | None) -> list[str]:
+    w = []
+    if not post.get("scores_from_html"):
+        w.append("Comment scores unavailable; engagement weights use replies only.")
+    rep, cap = post.get("reported_comment_count") or 0, post.get("captured_comment_count") or 0
+    if rep > cap:
+        w.append(f"Captured {cap} of {rep} comments (Reddit only renders the top of large threads).")
+    missing = [n for n, a in accounts.items() if a.get("fetch_status") in ("timeout", "error")]
+    if missing:
+        w.append(f"{len(missing)} commenter profile(s) couldn't be fetched in time and are unscored.")
+    if not model:
+        w.append("Narrative names are keywords (LLM unavailable).")
+    return w
 
 
 def warmup() -> None:
@@ -172,11 +199,19 @@ def warmup() -> None:
 
 
 if __name__ == "__main__":
+    import json
     import sys
+
+    from candor.urls import normalize_reddit_url
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s: %(message)s")
     for noisy in ("httpx", "httpx2"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
-    out = analyze(sys.argv[1], progress=lambda p, m: print(f"[{p:>4.0%}] {m}", flush=True))
-    print(json.dumps({k: v for k, v in out.items() if k != "buckets"}, indent=1, ensure_ascii=False))
-    for b in out["buckets"]:
-        print(f"  {b['weighted_share']:>6.1%} weighted  {b['n_comments']:>3} comments  {b['label']}")
+    norm = normalize_reddit_url(sys.argv[1])
+    if not norm:
+        sys.exit("not a Reddit post URL")
+    aid = store.create(sys.argv[1], norm[0], norm[1], visitor_id="cli", client_ip=None)
+    out = analyze(aid, norm[0], progress=lambda p, m: print(f"[{p:>4.0%}] {m}", flush=True))
+    store.update(aid, status="done", progress=1.0, message="Done", summary_json=json.dumps(out), finished_at=time.time())
+    print(json.dumps(out, indent=1, ensure_ascii=False))
+    print(f"\nview: /view.html?id={aid}   files: {store.run_dir(aid)}")
