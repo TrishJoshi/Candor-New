@@ -376,6 +376,20 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
 .card.has-summary:not(.topic-card) canvas { height: 110px; opacity: .85; }
 .card .sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
 #timeline { width: 100%; height: 280px; }
+.inauth-list { list-style: none; margin: 0; padding: 6px 8px; counter-reset: r; }
+.inauth-list li button { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 26px minmax(0, 1fr) 64px; gap: 2px 10px; width: 100%; padding: 9px 8px; border-radius: 8px; cursor: pointer; align-items: center; }
+.inauth-list li + li { border-top: 1px solid var(--border); }
+.inauth-list li button:hover { background: var(--surface-2); }
+.inauth-list li button:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+.inauth-list .rk { color: var(--muted); font-weight: 650; font-size: 13px; }
+.inauth-list .nm { font-weight: 600; }
+.inauth-list .tp { color: var(--ink-2); font-size: 12px; font-weight: 400; margin-left: 6px; }
+.inauth-list .pc { text-align: right; font-weight: 700; font-size: 16px; color: var(--bad); }
+.inauth-list .bar { grid-column: 2 / 4; height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.inauth-list .bar span { display: block; height: 100%; background: var(--bad); border-radius: 3px; }
+.inauth-list .ds { grid-column: 2 / 4; color: var(--ink-2); font-size: 12px; }
+.inauth-list .sm { grid-column: 2 / 4; font-size: 12.5px; color: var(--ink); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.inauth-empty { color: var(--muted); padding: 12px 14px; }
 .tl-note { color: var(--muted); font-size: 12px; padding: 0 14px 10px; margin: 0; }
 .panel.tl { margin-top: 16px; }
 </style>
@@ -412,9 +426,6 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
             <label id="enc-up" hidden data-tip="Bigger dot = more upvotes (square-root scale, so a few viral comments don't swamp the map)."><input type="checkbox" id="size-up" checked> Size = upvotes</label>
             <label id="enc-auth" hidden data-tip="Each dot fades with its author's authenticity score: solid at 90+, about half at 55, faint below 30. Hollow rings are authors we didn't score (only a thread's most engaged commenters are scored)."><input type="checkbox" id="fade-auth" checked>
               Opacity = author authenticity <span class="fade" aria-hidden="true"><i style="background:var(--series-1);opacity:1"></i><i style="background:var(--series-1);opacity:.55"></i><i style="background:var(--series-1);opacity:.2"></i></span>high → low · <span class="ring" aria-hidden="true"></span>not scored</label>
-            <!-- INAUTH hook (highlight inauthentic) -->
-            <label id="enc-inauth" hidden data-tip="Red dots = comments by accounts scored suspicious, amber = uncertain, drawn on top. A red halo marks each narrative where a large share of the scored engagement comes from such accounts: the stronger the halo, the larger that share."><input type="checkbox" id="hl-inauth" checked>
-              Highlight inauthentic <span class="fade" aria-hidden="true"><i style="background:var(--bad)"></i><i style="background:var(--warn)"></i></span></label>
           </div>
         </div>
         <div id="map" role="img" aria-label="2D map of all comments, coloured by the selected topic"></div>
@@ -424,6 +435,11 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
         <div class="map-head"><h2>Activity over time</h2><span class="sub" id="tl-sub"></span></div>
         <div id="timeline" role="img" aria-label="Comments over time, overall and per narrative of the selected topic"></div>
         <p class="tl-note" id="tl-note"></p>
+      </section>
+      <section class="panel tl" id="inauth-panel" hidden>
+        <div class="map-head"><h2>Narratives leaning on inauthentic accounts</h2><span class="sub" id="inauth-sub"></span></div>
+        <ol class="inauth-list" id="inauth-list"></ol>
+        <p class="tl-note">Ranked by the share of each narrative's scored engagement (log of upvotes + 1 per comment) that comes from accounts labelled uncertain or suspicious. Narratives with fewer than 3 scored comments aren't ranked. A high share is a reason to look closer, not proof of manipulation. Click one to show it on the map.</p>
       </section>
       <h3 class="section">Summaries <span style="text-transform:none;letter-spacing:0;font-weight:400">· written by an AI model from the comments; word clouds show each group's most distinctive words</span></h3>
       <div class="clouds" id="clouds"></div>
@@ -567,7 +583,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   }
   document.getElementById("topic-search").addEventListener("input", e => renderTopicList(e.target.value));
   subSel.addEventListener("change", () => {
-    sub = subSel.value; sizes = topicSize(); renderTiles();
+    sub = subSel.value; sizes = topicSize(); renderTiles(); renderInauth();
     const first = DATA.topics.filter(t => sizes.get(t.id)).sort((a, b) => sizes.get(b.id) - sizes.get(a.id))[0];
     select(first ? first.id : null);
   });
@@ -612,7 +628,6 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
       mk(other, "other", css("--context"), 4.5, 0.75),
       mk(sel, "selected", css("--series-1"), 7, 0.9),
       mk(hot, "hovered", css("--series-2"), 8, 1),
-      ...INAUTH.trace(),  // INAUTH hook
     ];
   }
   // View framing uses Tukey fences (IQR-based) so far-off UMAP islands, e.g.
@@ -641,68 +656,6 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   }
   const MAX_MAP_LABELS = 6;  // more than this piles up; the cards list every narrative
 
-  // ==== INAUTHENTIC HIGHLIGHT ===========================================================
-  // Self-contained: to revert, delete this block, the <label id="enc-inauth"> after the
-  // "INAUTH hook" HTML comment, and the two JS lines marked "INAUTH hook".
-  // Comments by uncertain/suspicious accounts are drawn on top in amber/red, and every
-  // narrative gets a red halo whose strength grows with its inauthentic share of engagement,
-  // so narratives that lean on inauthentic accounts stand out anywhere on the map.
-  const INAUTH = (() => {
-    const available = HAS_AUTH;
-    let on = available;
-    const MIN_SHARE = 0.05, LABEL_SHARE = 0.15, MAX_HALOS_LABELLED = 4;
-    const box = document.getElementById("enc-inauth");
-    box.hidden = false; document.getElementById("enc").classList.add("on");
-    if (!available) {  // no author scores in this map (yet): show the control, explain why it's off
-      const cb = document.getElementById("hl-inauth"); cb.checked = false; cb.disabled = true;
-      box.style.opacity = ".55";
-      box.dataset.tip = "Not available yet: none of this map's authors have authenticity scores. It switches on once they're scored.";
-    }
-    if (available) {
-      // fading low-scoring dots would hide exactly what this layer shows
-      fadeByAuth = false; document.getElementById("fade-auth").checked = false;
-      document.getElementById("hl-inauth").addEventListener("change", e => { on = e.target.checked; drawMap(); });
-    }
-    const halos = available ? DATA.narratives.map(n => {
-      const idx = idxBy(i => P.narrative[i] === n.id);
-      const a = authOf(idx);
-      if (a.n < MIN_SCORED || !(a.inauth >= MIN_SHARE)) return null;
-      const d = idx.map(i => Math.hypot(P.x[i] - n.center[0], P.y[i] - n.center[1])).sort((p, q) => p - q);
-      return {n, share: a.inauth, r: Math.max(0.15, 1.2 * d[Math.floor(d.length / 2)])};
-    }).filter(Boolean).sort((p, q) => q.share - p.share) : [];
-    const pts = available ? idxBy(i => P.band[i] === "warn" || P.band[i] === "bad") : [];
-    return {
-      trace() {  // drawn last, on top of the topic layers
-        if (!on) return [];
-        const idx = pts.filter(i => inSub(i) && (showNoise || P.narrative[i] !== -1));
-        return [{
-          type: "scattergl", mode: "markers", name: "inauthentic", x: pick(P.x, idx), y: pick(P.y, idx),
-          text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
-          marker: {color: idx.map(i => P.band[i] === "bad" ? css("--bad") : css("--warn")),
-            size: idx.map(i => (sizeByUp ? 7 * (0.65 + 2.35 * upR[i]) : 7) + 2), opacity: 0.95,
-            line: {width: 1, color: css("--surface")}},
-        }];
-      },
-      shapes() {
-        if (!on) return [];
-        return halos.map(h => ({
-          type: "circle", layer: "below", xref: "x", yref: "y",
-          x0: h.n.center[0] - h.r, x1: h.n.center[0] + h.r, y0: h.n.center[1] - h.r, y1: h.n.center[1] + h.r,
-          fillcolor: css("--bad"), opacity: Math.min(0.35, 0.06 + 0.45 * h.share),
-          line: {color: css("--bad"), width: h.share >= 0.25 ? 2 : 1},
-        }));
-      },
-      annotations() {
-        if (!on) return [];
-        return halos.filter(h => h.share >= LABEL_SHARE).slice(0, MAX_HALOS_LABELLED).map(h => ({
-          x: h.n.center[0], y: h.n.center[1] + h.r, yanchor: "bottom", showarrow: false,
-          text: `⚠ ${esc(h.n.label)} · ${pct(h.share, 1)}% inauthentic`,
-          font: {size: 11, color: "#fff"}, bgcolor: css("--bad"), borderpad: 3, opacity: 0.92,
-        }));
-      },
-    };
-  })();
-  // ==== end INAUTHENTIC HIGHLIGHT ========================================================
 
   function layout() {
     const t = topicById.get(selected);
@@ -720,7 +673,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
       margin: {l: 8, r: 8, t: 8, b: 8}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
       xaxis: {visible: false, range: viewRanges()[0]}, yaxis: {visible: false, range: viewRanges()[1]},
       showlegend: false, hovermode: "closest", dragmode: "pan",
-      annotations: [...annotations, ...INAUTH.annotations()], shapes: INAUTH.shapes(),  // INAUTH hook
+      annotations,
       hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}, align: "left"},
       // Keep the user's pan/zoom across hovers; reframe on topic or zoom-mode change.
       uirevision: (zoomToTopic ? "topic-" + selected : "all") + "|" + sub,
@@ -816,7 +769,6 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
     for (const id of narrOrder(t)) {
       const n = narrById.get(id);
       const card = cloudCard(n.label, `Narrative ${n.id} · ${fmt.format(n.size)} items` + (HAS_UP ? ` · ${fmt.format(n.upvotes)} upvotes` : ""), n.keywords, n.examples, "", n.summary, n._auth, narrColor(t, n.id));
-      if (n.by_band) card.querySelector(".meta").after(...bandsBar(n.by_band));
       card.addEventListener("mouseenter", () => setHovered(n.id, card));
       card.addEventListener("mouseleave", () => setHovered(null, null));
       cloudsEl.append(card);
@@ -887,6 +839,46 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
       "Hover over a narrative card to highlight its line.";
   }
 
+  // ------------------------------------------- narratives leaning on inauthentic accounts
+  const MAX_INAUTH = 12;
+  const pointsOf = new Map();
+  for (let i = 0; i < N; i++) if (P.narrative[i] !== -1) {
+    if (!pointsOf.has(P.narrative[i])) pointsOf.set(P.narrative[i], []);
+    pointsOf.get(P.narrative[i]).push(i);
+  }
+  function renderInauth() {
+    const panel = document.getElementById("inauth-panel");
+    if (!HAS_AUTH) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const rows = DATA.narratives.map(n => ({n, a: authOf((pointsOf.get(n.id) || []).filter(inSub))}))
+      .filter(r => r.a.n >= MIN_SCORED && r.a.inauth > 0)
+      .sort((p, q) => q.a.inauth - p.a.inauth || q.a.n - p.a.n);
+    document.getElementById("inauth-sub").textContent = (sub ? `in r/${sub} · ` : "") +
+      (rows.length ? `${rows.length} narrative${rows.length > 1 ? "s" : ""} with some inauthentic engagement` : "");
+    const list = document.getElementById("inauth-list");
+    if (!rows.length) {
+      list.replaceChildren(el("li", {className: "inauth-empty", textContent: "No narrative here has scored comments from uncertain or suspicious accounts."}));
+      return;
+    }
+    list.replaceChildren(...rows.slice(0, MAX_INAUTH).map((r, k) => {
+      const t = topicById.get(r.n.topic);
+      const btn = el("button", {type: "button"},
+        el("span", {className: "rk", textContent: String(k + 1)}),
+        el("span", {}, el("span", {className: "nm", textContent: r.n.label}), el("span", {className: "tp", textContent: t ? `in ${t.label}` : ""})),
+        el("span", {className: "pc", textContent: pct(r.a.inauth, 1) + "%"}),
+        el("div", {className: "bar"}, el("span", {style: `width:${Math.max(2, 100 * r.a.inauth)}%`})),
+        el("span", {className: "ds", textContent: `of scored engagement from uncertain/suspicious accounts · authenticity ${Math.round(r.a.score)} · ${r.a.n} scored comments`}));
+      if (r.n.summary) btn.append(el("span", {className: "sm", textContent: r.n.summary}));
+      btn.addEventListener("click", () => {
+        if (r.n.topic !== selected) select(r.n.topic);
+        const card = [...cloudsEl.querySelectorAll(".card")].find(c => c.querySelector("h4")?.textContent.endsWith(r.n.label));
+        setHovered(r.n.id, card || null);
+        mapEl.scrollIntoView({behavior: "smooth", block: "center"});
+      });
+      return el("li", {}, btn);
+    }));
+  }
+
   // ------------------------------------------------------------- behaviour
   function setHovered(id, card) {
     hovered = id;
@@ -919,6 +911,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   document.addEventListener("focusout", () => { tip.hidden = true; });
 
   renderTiles();
+  renderInauth();
   select(selected);
   if (window.Plotly) {
     mapEl.on("plotly_click", ev => {

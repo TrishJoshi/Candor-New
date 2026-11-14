@@ -129,6 +129,20 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
 .card.has-summary:not(.topic-card) canvas { height: 110px; opacity: .85; }
 .card .sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
 #timeline { width: 100%; height: 280px; }
+.inauth-list { list-style: none; margin: 0; padding: 6px 8px; counter-reset: r; }
+.inauth-list li button { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 26px minmax(0, 1fr) 64px; gap: 2px 10px; width: 100%; padding: 9px 8px; border-radius: 8px; cursor: pointer; align-items: center; }
+.inauth-list li + li { border-top: 1px solid var(--border); }
+.inauth-list li button:hover { background: var(--surface-2); }
+.inauth-list li button:focus-visible { outline: 2px solid var(--series-1); outline-offset: -2px; }
+.inauth-list .rk { color: var(--muted); font-weight: 650; font-size: 13px; }
+.inauth-list .nm { font-weight: 600; }
+.inauth-list .tp { color: var(--ink-2); font-size: 12px; font-weight: 400; margin-left: 6px; }
+.inauth-list .pc { text-align: right; font-weight: 700; font-size: 16px; color: var(--bad); }
+.inauth-list .bar { grid-column: 2 / 4; height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.inauth-list .bar span { display: block; height: 100%; background: var(--bad); border-radius: 3px; }
+.inauth-list .ds { grid-column: 2 / 4; color: var(--ink-2); font-size: 12px; }
+.inauth-list .sm { grid-column: 2 / 4; font-size: 12.5px; color: var(--ink); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.inauth-empty { color: var(--muted); padding: 12px 14px; }
 .tl-note { color: var(--muted); font-size: 12px; padding: 0 14px 10px; margin: 0; }
 .panel.tl { margin-top: 16px; }
 </style>
@@ -165,9 +179,6 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
             <label id="enc-up" hidden data-tip="Bigger dot = more upvotes (square-root scale, so a few viral comments don't swamp the map)."><input type="checkbox" id="size-up" checked> Size = upvotes</label>
             <label id="enc-auth" hidden data-tip="Each dot fades with its author's authenticity score: solid at 90+, about half at 55, faint below 30. Hollow rings are authors we didn't score (only a thread's most engaged commenters are scored)."><input type="checkbox" id="fade-auth" checked>
               Opacity = author authenticity <span class="fade" aria-hidden="true"><i style="background:var(--series-1);opacity:1"></i><i style="background:var(--series-1);opacity:.55"></i><i style="background:var(--series-1);opacity:.2"></i></span>high → low · <span class="ring" aria-hidden="true"></span>not scored</label>
-            <!-- INAUTH hook (highlight inauthentic) -->
-            <label id="enc-inauth" hidden data-tip="Red dots = comments by accounts scored suspicious, amber = uncertain, drawn on top. A red halo marks each narrative where a large share of the scored engagement comes from such accounts: the stronger the halo, the larger that share."><input type="checkbox" id="hl-inauth" checked>
-              Highlight inauthentic <span class="fade" aria-hidden="true"><i style="background:var(--bad)"></i><i style="background:var(--warn)"></i></span></label>
           </div>
         </div>
         <div id="map" role="img" aria-label="2D map of all comments, coloured by the selected topic"></div>
@@ -178,13 +189,18 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
         <div id="timeline" role="img" aria-label="Comments over time, overall and per narrative of the selected topic"></div>
         <p class="tl-note" id="tl-note"></p>
       </section>
+      <section class="panel tl" id="inauth-panel" hidden>
+        <div class="map-head"><h2>Narratives leaning on inauthentic accounts</h2><span class="sub" id="inauth-sub"></span></div>
+        <ol class="inauth-list" id="inauth-list"></ol>
+        <p class="tl-note">Ranked by the share of each narrative's scored engagement (log of upvotes + 1 per comment) that comes from accounts labelled uncertain or suspicious. Narratives with fewer than 3 scored comments aren't ranked. A high share is a reason to look closer, not proof of manipulation. Click one to show it on the map.</p>
+      </section>
       <h3 class="section">Summaries <span style="text-transform:none;letter-spacing:0;font-weight:400">· written by an AI model from the comments; word clouds show each group's most distinctive words</span></h3>
       <div class="clouds" id="clouds"></div>
     </main>
   </div>
 </div>
 <div class="tip" id="tip" hidden></div>
-<script type="application/json" id="candor-data">{"meta":{"source":"r/Damnthatsinteresting · A man trying to get his old job back 2,700 years ago complained about three unanswered let","labels":"LLM (nemotron-3.5-super-vl)","generated":"2026-11-14 21:33 UTC","n_items":29,"n_noise":1,"has_upvotes":true,"has_authenticity":true,"engagement":{"upvotes":40538,"auth_score":94.0,"inauth_share":0.0,"n_scored":27,"coverage":0.931,"by_band":{"ok":40546,"warn":0,"bad":0,"na":21}},"params":{"embedder":"gemini","min_cluster_size":3,"selection":"eom","topic_method":"agglomerative","topic_threshold":0.06}},"points":{"x":[-1.243,-1.497,1.311,0.907,-0.758,-0.001,0.847,2.585,1.117,2.213,2.152,2.317,2.74,-2.077,-0.022,-1.603,0.51,-1.193,-0.571,0.507,-0.829,-1.787,-0.14,-1.654,-1.333,1.628,0.005,-1.756,-2.017],"y":[2.16,1.689,1.817,0.925,3.198,1.273,1.573,1.294,0.548,0.981,1.49,1.86,1.457,2.844,2.291,2.786,1.388,3.192,1.732,0.653,2.506,1.911,2.726,3.132,3.623,1.166,0.896,1.549,3.471],"narrative":[0,0,1,1,0,1,1,1,1,1,1,1,1,0,1,0,1,0,0,1,0,-1,1,0,0,1,1,0,0],"topic":[1,1,0,0,1,0,0,0,0,0,0,0,0,1,0,1,0,1,1,0,1,-1,0,1,1,0,0,1,1],"author":["jrralls","jrralls","curiousmind111","jrralls","OhNoTokyo","jrralls","Ok_Mention_9865","jrralls","lanAstbury","jrralls","PTCarnahan","jrralls","jrralls","Meemow2545","mog44net","zoley88","Temporary-Careless","ZanteTheInfernal","maloney7","Careohlyne","QueenOfQuok","Septopuss7","jdaman98","Scaredandalone22","mosgamal","Ferns-N-Frogs","Rattle_Bone","BoarHermit","HallAltruistic519"],"subreddit":["Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting"],"kind":["post","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment"],"text":["A man trying to get his old job back 2,700 years ago complained about three unanswered letters. The letter containing his complaint was found unopened.","You probably know Ea-nasir, the ancient copper merchant who became internet famous because somebody preserved a complaint about his lousy copper. Part of what people loved about that letter was how familiar the whole thing felt. Almost 4,000 years later, and here’s a guy dealing with bad merchandise, bad customer serv…","I never realized they used clay envelopes.","Yep, to read the message, you had to break open that outer shell.","What if the guy was given a firm and clear reason for being fired at the time of firing, and he just decided that he was going to keep harassing the lord to get his job back? I might leave his stuff unread too, in that situation. We don't know if he made a major nuisance out of himself otherwise and the lord just wasn…","Utterly possible! We just have no idea.","Where was the letter found? Do we think it actually got delivered or maybe lost some how?","To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s what “unopened” means here. Source, including a photograph of the tablet and its partly opened envelope","how does one \"un-open\" a baguette?","=The written tablet was enclosed in a separate clay shell. To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s what “unopened” means here. Source, including a photograph of the tablet and it…","What does it mean for a clay tablet to be unopened? Did they come in clay envelopes?","To everyone asking some variation of \"How do you open a clay envelope?\" The written tablet was enclosed in a separate clay shell. To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s what “un…","To everyone asking some variation of \"How do you open a clay envelope?\" The written tablet was enclosed in a separate clay shell. To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s what “un…","Lmao even the ancient job market was trash 😭😭😭","As per my previous scroll","Nice to see that HR was the same 2700 years ago.","Has anyone told OP its against the law to open someone else's mail?","So employer's have been just ghosting people for at least 2700 years","In 10,000 years what will archaeologists find about us? Paper and hard drives aren't going to leave a trace.","Looks like Cinnamon Sugar Pop-Tarts.","You think getting your number blocked is rough, imagine having to write clay tablets just to get no answer.","Irving Finkel has a whole YouTube video where he reads the drama going on by cuneiform tablets between kings and other nobels. It's actually quite hilarious, I wish he did more videos like that. Apparently there's a wealth of tablets pre collapse of them just bitching and crying to each other lol","Dear Ea-naslim, I wrote you, but you still ain’t callin’","So what you’re saying is I had a better chance at getting a good paying job 2700 years ago than I can today?","r/recruitinghell","how is a clay tablet unopened? Isn't that kind of like saying a postcard is unopened?","“Ugh, this guy.” <throws it away>","Google it, text is beautiful. ...... This clay tablet (cataloged as SAA 15 288 in the British Museum) is a Neo-Assyrian letter from the reign of Sargon II (late 8th century BC). It was written by an official named Assur-resuwa to his superior, begging to be reinstated to his old job after being ignored. Here is the tr…","Sounds like the son cleared out his father's administration when he took over"],"t":[1794606276,1794606306,1794609061,1794613901,1794614017,1794614420,1794607121,1794613923,1794606455,1794613880,1794613627,1794613761,1794613755,1794622860,1794607107,1794644342,1794606471,1794606744,1794606881,1794606784,1794606849,1794612007,1794607656,1794607880,1794607203,1794632017,1794607504,1794648875,1794656122],"upvotes":[28460,6208,50,27,31,12,22,18,740,80,5,18,5,630,2774,137,190,563,267,39,76,28,24,24,22,20,18,36,14],"auth":[89.0,89.0,98.0,89.0,98.0,89.0,89.0,89.0,91.0,89.0,null,89.0,89.0,97.0,100.0,100.0,100.0,100.0,89.0,100.0,89.0,91.0,96.0,100.0,96.0,100.0,100.0,91.0,null],"band":["ok","ok","ok","ok","ok","ok","ok","ok","ok","ok",null,"ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok",null]},"topics":[{"id":0,"label":"Ancient Communication","size":16,"narratives":[1],"keywords":[["envelope",0.093231],["open",0.090898],["tablet",0.083907],["shell",0.083357],["clay",0.081974],["opened",0.078516],["unopened",0.072937],["break open",0.05852],["message",0.05852],["open outer",0.05852],["outer shell",0.05852],["outer",0.05852],["read",0.05852],["message break",0.05852],["read message",0.05852],["break",0.05852],["museum unopened",0.049269],["particular",0.049269],["particular letter",0.049269],["partly",0.049269],["opened reached",0.049269],["intact",0.049269],["including photograph",0.049269],["envelope intact",0.049269],["letter envelope",0.049269],["including",0.049269],["means",0.049269],["opened envelope",0.049269],["reached british",0.049269],["source including",0.049269]],"subreddits":[["Damnthatsinteresting",16]],"summary":"The discussion concerns ancient messages sealed inside clay envelopes that had to be broken to read, with commenters noting one letter remained unopened until modern examination. Viewpoints differ on whether the intact seal preserves historical authenticity or whether breaking it is necessary to access the message.","upvotes":4042,"auth_score":94.4,"inauth_share":0.0,"n_scored":15,"coverage":0.938,"by_band":{"ok":4052,"warn":0,"bad":0,"na":6}},{"id":1,"label":"Job market","size":12,"narratives":[0],"keywords":[["lord",0.072416],["years",0.05098],["job",0.041115],["letter",0.039913],["letters",0.030132],["years ago",0.030132],["ago",0.030132],["assyrian",0.024054],["man",0.024054],["copper",0.024054],["complaint",0.024054],["old",0.024054],["trying",0.024054],["tail",0.024054],["somebody",0.024054],["text",0.024054],["answer",0.024054],["dog",0.024054],["father",0.024054],["lord lord",0.024054],["guy",0.022599],["clay",0.022282],["reply",0.017407],["sent",0.017407],["cataloged saa",0.017407],["bad",0.017407],["assur resuwa",0.017407],["cataloged",0.017407],["serve",0.017407],["reply letter",0.017407]],"subreddits":[["Damnthatsinteresting",12]],"summary":"The discussion examines frustrations with the job market, including employer ghosting and unresponsive hiring. Commentators argue that these difficulties are timeless, using historical comparisons to suggest that job-seeking has always been challenging.","upvotes":36468,"auth_score":93.6,"inauth_share":0.0,"n_scored":11,"coverage":0.917,"by_band":{"ok":36465,"warn":0,"bad":0,"na":15}}],"narratives":[{"id":0,"label":"Job market always bad","topic":1,"size":12,"center":[-1.415,2.815],"upvotes":36468,"auth_score":93.6,"inauth_share":0.0,"n_scored":11,"coverage":0.917,"by_band":{"ok":36465,"warn":0,"bad":0,"na":15},"summary":"Commenters argue that job-seeking frustrations, including employer ghosting and unresponsive hiring practices, are timeless by comparing modern experiences to ancient complaints. They use historical examples to suggest that the job market has always been difficult.","keywords":[["lord",0.072416],["years",0.05098],["job",0.041115],["letter",0.039913],["letters",0.030132],["years ago",0.030132],["ago",0.030132],["assyrian",0.024054],["man",0.024054],["copper",0.024054],["complaint",0.024054],["old",0.024054],["trying",0.024054],["tail",0.024054],["somebody",0.024054],["text",0.024054],["answer",0.024054],["dog",0.024054],["father",0.024054],["lord lord",0.024054],["guy",0.022599],["clay",0.022282],["reply",0.017407],["sent",0.017407],["cataloged saa",0.017407],["bad",0.017407],["assur resuwa",0.017407],["cataloged",0.017407],["serve",0.017407],["reply letter",0.017407]],"examples":[{"author":"ZanteTheInfernal","text":"So employer's have been just ghosting people for at least 2700 years"},{"author":"jrralls","text":"A man trying to get his old job back 2,700 years ago complained about three unanswered letters. The letter containing his complaint was found unopened."},{"author":"Meemow2545","text":"Lmao even the ancient job market was trash 😭😭😭"}]},{"id":1,"label":"Clay envelopes protected messages","topic":0,"size":16,"center":[1.012,1.341],"upvotes":4042,"auth_score":94.4,"inauth_share":0.0,"n_scored":15,"coverage":0.938,"by_band":{"ok":4052,"warn":0,"bad":0,"na":6},"summary":"Commenters explain that ancient messages were written on tablets enclosed in separate clay shells, which had to be broken to read the contents, and they discuss the significance of one such letter remaining unopened until modern examination.","keywords":[["envelope",0.093231],["open",0.090898],["tablet",0.083907],["shell",0.083357],["clay",0.081974],["opened",0.078516],["unopened",0.072937],["break open",0.05852],["message",0.05852],["open outer",0.05852],["outer shell",0.05852],["outer",0.05852],["read",0.05852],["message break",0.05852],["read message",0.05852],["break",0.05852],["museum unopened",0.049269],["particular",0.049269],["particular letter",0.049269],["partly",0.049269],["opened reached",0.049269],["intact",0.049269],["including photograph",0.049269],["envelope intact",0.049269],["letter envelope",0.049269],["including",0.049269],["means",0.049269],["opened envelope",0.049269],["reached british",0.049269],["source including",0.049269]],"examples":[{"author":"Ferns-N-Frogs","text":"how is a clay tablet unopened? Isn't that kind of like saying a postcard is unopened?"},{"author":"curiousmind111","text":"I never realized they used clay envelopes."},{"author":"jrralls","text":"=The written tablet was enclosed in a separate clay shell. To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s…"}]}]}</script>
+<script type="application/json" id="candor-data">{"meta":{"source":"r/Damnthatsinteresting · A man trying to get his old job back 2,700 years ago complained about three unanswered let","labels":"LLM (nemotron-3.5-super-vl)","generated":"2026-11-14 21:44 UTC","n_items":29,"n_noise":1,"has_upvotes":true,"has_authenticity":true,"engagement":{"upvotes":40538,"auth_score":94.0,"inauth_share":0.0,"n_scored":27,"coverage":0.931,"by_band":{"ok":40546,"warn":0,"bad":0,"na":21}},"params":{"embedder":"gemini","min_cluster_size":3,"selection":"eom","topic_method":"agglomerative","topic_threshold":0.06}},"points":{"x":[-1.243,-1.497,1.311,0.907,-0.758,-0.001,0.847,2.585,1.117,2.213,2.152,2.317,2.74,-2.077,-0.022,-1.603,0.51,-1.193,-0.571,0.507,-0.829,-1.787,-0.14,-1.654,-1.333,1.628,0.005,-1.756,-2.017],"y":[2.16,1.689,1.817,0.925,3.198,1.273,1.573,1.294,0.548,0.981,1.49,1.86,1.457,2.844,2.291,2.786,1.388,3.192,1.732,0.653,2.506,1.911,2.726,3.132,3.623,1.166,0.896,1.549,3.471],"narrative":[0,0,1,1,0,1,1,1,1,1,1,1,1,0,1,0,1,0,0,1,0,-1,1,0,0,1,1,0,0],"topic":[1,1,0,0,1,0,0,0,0,0,0,0,0,1,0,1,0,1,1,0,1,-1,0,1,1,0,0,1,1],"author":["jrralls","jrralls","curiousmind111","jrralls","OhNoTokyo","jrralls","Ok_Mention_9865","jrralls","lanAstbury","jrralls","PTCarnahan","jrralls","jrralls","Meemow2545","mog44net","zoley88","Temporary-Careless","ZanteTheInfernal","maloney7","Careohlyne","QueenOfQuok","Septopuss7","jdaman98","Scaredandalone22","mosgamal","Ferns-N-Frogs","Rattle_Bone","BoarHermit","HallAltruistic519"],"subreddit":["Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting","Damnthatsinteresting"],"kind":["post","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment","comment"],"text":["A man trying to get his old job back 2,700 years ago complained about three unanswered letters. The letter containing his complaint was found unopened.","You probably know Ea-nasir, the ancient copper merchant who became internet famous because somebody preserved a complaint about his lousy copper. Part of what people loved about that letter was how familiar the whole thing felt. Almost 4,000 years later, and here’s a guy dealing with bad merchandise, bad customer serv…","I never realized they used clay envelopes.","Yep, to read the message, you had to break open that outer shell.","What if the guy was given a firm and clear reason for being fired at the time of firing, and he just decided that he was going to keep harassing the lord to get his job back? I might leave his stuff unread too, in that situation. We don't know if he made a major nuisance out of himself otherwise and the lord just wasn…","Utterly possible! We just have no idea.","Where was the letter found? Do we think it actually got delivered or maybe lost some how?","To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s what “unopened” means here. Source, including a photograph of the tablet and its partly opened envelope","how does one \"un-open\" a baguette?","=The written tablet was enclosed in a separate clay shell. To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s what “unopened” means here. Source, including a photograph of the tablet and it…","What does it mean for a clay tablet to be unopened? Did they come in clay envelopes?","To everyone asking some variation of \"How do you open a clay envelope?\" The written tablet was enclosed in a separate clay shell. To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s what “un…","To everyone asking some variation of \"How do you open a clay envelope?\" The written tablet was enclosed in a separate clay shell. To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s what “un…","Lmao even the ancient job market was trash 😭😭😭","As per my previous scroll","Nice to see that HR was the same 2700 years ago.","Has anyone told OP its against the law to open someone else's mail?","So employer's have been just ghosting people for at least 2700 years","In 10,000 years what will archaeologists find about us? Paper and hard drives aren't going to leave a trace.","Looks like Cinnamon Sugar Pop-Tarts.","You think getting your number blocked is rough, imagine having to write clay tablets just to get no answer.","Irving Finkel has a whole YouTube video where he reads the drama going on by cuneiform tablets between kings and other nobels. It's actually quite hilarious, I wish he did more videos like that. Apparently there's a wealth of tablets pre collapse of them just bitching and crying to each other lol","Dear Ea-naslim, I wrote you, but you still ain’t callin’","So what you’re saying is I had a better chance at getting a good paying job 2700 years ago than I can today?","r/recruitinghell","how is a clay tablet unopened? Isn't that kind of like saying a postcard is unopened?","“Ugh, this guy.” <throws it away>","Google it, text is beautiful. ...... This clay tablet (cataloged as SAA 15 288 in the British Museum) is a Neo-Assyrian letter from the reign of Sargon II (late 8th century BC). It was written by an official named Assur-resuwa to his superior, begging to be reinstated to his old job after being ignored. Here is the tr…","Sounds like the son cleared out his father's administration when he took over"],"t":[1794606276,1794606306,1794609061,1794613901,1794614017,1794614420,1794607121,1794613923,1794606455,1794613880,1794613627,1794613761,1794613755,1794622860,1794607107,1794644342,1794606471,1794606744,1794606881,1794606784,1794606849,1794612007,1794607656,1794607880,1794607203,1794632017,1794607504,1794648875,1794656122],"upvotes":[28460,6208,50,27,31,12,22,18,740,80,5,18,5,630,2774,137,190,563,267,39,76,28,24,24,22,20,18,36,14],"auth":[89.0,89.0,98.0,89.0,98.0,89.0,89.0,89.0,91.0,89.0,null,89.0,89.0,97.0,100.0,100.0,100.0,100.0,89.0,100.0,89.0,91.0,96.0,100.0,96.0,100.0,100.0,91.0,null],"band":["ok","ok","ok","ok","ok","ok","ok","ok","ok","ok",null,"ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok","ok",null]},"topics":[{"id":0,"label":"Ancient Communication","size":16,"narratives":[1],"keywords":[["envelope",0.093231],["open",0.090898],["tablet",0.083907],["shell",0.083357],["clay",0.081974],["opened",0.078516],["unopened",0.072937],["break open",0.05852],["message",0.05852],["open outer",0.05852],["outer shell",0.05852],["outer",0.05852],["read",0.05852],["message break",0.05852],["read message",0.05852],["break",0.05852],["museum unopened",0.049269],["particular",0.049269],["particular letter",0.049269],["partly",0.049269],["opened reached",0.049269],["intact",0.049269],["including photograph",0.049269],["envelope intact",0.049269],["letter envelope",0.049269],["including",0.049269],["means",0.049269],["opened envelope",0.049269],["reached british",0.049269],["source including",0.049269]],"subreddits":[["Damnthatsinteresting",16]],"summary":"The discussion concerns ancient messages sealed inside clay envelopes that had to be broken to read, with commenters noting one letter remained unopened until modern examination. Viewpoints differ on whether the intact seal preserves historical authenticity or whether breaking it is necessary to access the message.","upvotes":4042,"auth_score":94.4,"inauth_share":0.0,"n_scored":15,"coverage":0.938,"by_band":{"ok":4052,"warn":0,"bad":0,"na":6}},{"id":1,"label":"Job market","size":12,"narratives":[0],"keywords":[["lord",0.072416],["years",0.05098],["job",0.041115],["letter",0.039913],["letters",0.030132],["years ago",0.030132],["ago",0.030132],["assyrian",0.024054],["man",0.024054],["copper",0.024054],["complaint",0.024054],["old",0.024054],["trying",0.024054],["tail",0.024054],["somebody",0.024054],["text",0.024054],["answer",0.024054],["dog",0.024054],["father",0.024054],["lord lord",0.024054],["guy",0.022599],["clay",0.022282],["reply",0.017407],["sent",0.017407],["cataloged saa",0.017407],["bad",0.017407],["assur resuwa",0.017407],["cataloged",0.017407],["serve",0.017407],["reply letter",0.017407]],"subreddits":[["Damnthatsinteresting",12]],"summary":"The discussion examines frustrations with the job market, including employer ghosting and unresponsive hiring. Commentators argue that these difficulties are timeless, using historical comparisons to suggest that job-seeking has always been challenging.","upvotes":36468,"auth_score":93.6,"inauth_share":0.0,"n_scored":11,"coverage":0.917,"by_band":{"ok":36465,"warn":0,"bad":0,"na":15}}],"narratives":[{"id":0,"label":"Job market always bad","topic":1,"size":12,"center":[-1.415,2.815],"upvotes":36468,"auth_score":93.6,"inauth_share":0.0,"n_scored":11,"coverage":0.917,"by_band":{"ok":36465,"warn":0,"bad":0,"na":15},"summary":"Commenters argue that job-seeking frustrations, including employer ghosting and unresponsive hiring practices, are timeless by comparing modern experiences to ancient complaints. They use historical examples to suggest that the job market has always been difficult.","keywords":[["lord",0.072416],["years",0.05098],["job",0.041115],["letter",0.039913],["letters",0.030132],["years ago",0.030132],["ago",0.030132],["assyrian",0.024054],["man",0.024054],["copper",0.024054],["complaint",0.024054],["old",0.024054],["trying",0.024054],["tail",0.024054],["somebody",0.024054],["text",0.024054],["answer",0.024054],["dog",0.024054],["father",0.024054],["lord lord",0.024054],["guy",0.022599],["clay",0.022282],["reply",0.017407],["sent",0.017407],["cataloged saa",0.017407],["bad",0.017407],["assur resuwa",0.017407],["cataloged",0.017407],["serve",0.017407],["reply letter",0.017407]],"examples":[{"author":"ZanteTheInfernal","text":"So employer's have been just ghosting people for at least 2700 years"},{"author":"jrralls","text":"A man trying to get his old job back 2,700 years ago complained about three unanswered letters. The letter containing his complaint was found unopened."},{"author":"Meemow2545","text":"Lmao even the ancient job market was trash 😭😭😭"}]},{"id":1,"label":"Clay envelopes protected messages","topic":0,"size":16,"center":[1.012,1.341],"upvotes":4042,"auth_score":94.4,"inauth_share":0.0,"n_scored":15,"coverage":0.938,"by_band":{"ok":4052,"warn":0,"bad":0,"na":6},"summary":"Commenters explain that ancient messages were written on tablets enclosed in separate clay shells, which had to be broken to read the contents, and they discuss the significance of one such letter remaining unopened until modern examination.","keywords":[["envelope",0.093231],["open",0.090898],["tablet",0.083907],["shell",0.083357],["clay",0.081974],["opened",0.078516],["unopened",0.072937],["break open",0.05852],["message",0.05852],["open outer",0.05852],["outer shell",0.05852],["outer",0.05852],["read",0.05852],["message break",0.05852],["read message",0.05852],["break",0.05852],["museum unopened",0.049269],["particular",0.049269],["particular letter",0.049269],["partly",0.049269],["opened reached",0.049269],["intact",0.049269],["including photograph",0.049269],["envelope intact",0.049269],["letter envelope",0.049269],["including",0.049269],["means",0.049269],["opened envelope",0.049269],["reached british",0.049269],["source including",0.049269]],"examples":[{"author":"Ferns-N-Frogs","text":"how is a clay tablet unopened? Isn't that kind of like saying a postcard is unopened?"},{"author":"curiousmind111","text":"I never realized they used clay envelopes."},{"author":"jrralls","text":"=The written tablet was enclosed in a separate clay shell. To read the message, you had to break open that outer shell. This particular letter was found with its envelope intact and wasn’t opened until it reached the British Museum. That’s…"}]}]}</script>
 <script>
 (function () {
   "use strict";
@@ -320,7 +336,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   }
   document.getElementById("topic-search").addEventListener("input", e => renderTopicList(e.target.value));
   subSel.addEventListener("change", () => {
-    sub = subSel.value; sizes = topicSize(); renderTiles();
+    sub = subSel.value; sizes = topicSize(); renderTiles(); renderInauth();
     const first = DATA.topics.filter(t => sizes.get(t.id)).sort((a, b) => sizes.get(b.id) - sizes.get(a.id))[0];
     select(first ? first.id : null);
   });
@@ -365,7 +381,6 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
       mk(other, "other", css("--context"), 4.5, 0.75),
       mk(sel, "selected", css("--series-1"), 7, 0.9),
       mk(hot, "hovered", css("--series-2"), 8, 1),
-      ...INAUTH.trace(),  // INAUTH hook
     ];
   }
   // View framing uses Tukey fences (IQR-based) so far-off UMAP islands, e.g.
@@ -394,68 +409,6 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   }
   const MAX_MAP_LABELS = 6;  // more than this piles up; the cards list every narrative
 
-  // ==== INAUTHENTIC HIGHLIGHT ===========================================================
-  // Self-contained: to revert, delete this block, the <label id="enc-inauth"> after the
-  // "INAUTH hook" HTML comment, and the two JS lines marked "INAUTH hook".
-  // Comments by uncertain/suspicious accounts are drawn on top in amber/red, and every
-  // narrative gets a red halo whose strength grows with its inauthentic share of engagement,
-  // so narratives that lean on inauthentic accounts stand out anywhere on the map.
-  const INAUTH = (() => {
-    const available = HAS_AUTH;
-    let on = available;
-    const MIN_SHARE = 0.05, LABEL_SHARE = 0.15, MAX_HALOS_LABELLED = 4;
-    const box = document.getElementById("enc-inauth");
-    box.hidden = false; document.getElementById("enc").classList.add("on");
-    if (!available) {  // no author scores in this map (yet): show the control, explain why it's off
-      const cb = document.getElementById("hl-inauth"); cb.checked = false; cb.disabled = true;
-      box.style.opacity = ".55";
-      box.dataset.tip = "Not available yet: none of this map's authors have authenticity scores. It switches on once they're scored.";
-    }
-    if (available) {
-      // fading low-scoring dots would hide exactly what this layer shows
-      fadeByAuth = false; document.getElementById("fade-auth").checked = false;
-      document.getElementById("hl-inauth").addEventListener("change", e => { on = e.target.checked; drawMap(); });
-    }
-    const halos = available ? DATA.narratives.map(n => {
-      const idx = idxBy(i => P.narrative[i] === n.id);
-      const a = authOf(idx);
-      if (a.n < MIN_SCORED || !(a.inauth >= MIN_SHARE)) return null;
-      const d = idx.map(i => Math.hypot(P.x[i] - n.center[0], P.y[i] - n.center[1])).sort((p, q) => p - q);
-      return {n, share: a.inauth, r: Math.max(0.15, 1.2 * d[Math.floor(d.length / 2)])};
-    }).filter(Boolean).sort((p, q) => q.share - p.share) : [];
-    const pts = available ? idxBy(i => P.band[i] === "warn" || P.band[i] === "bad") : [];
-    return {
-      trace() {  // drawn last, on top of the topic layers
-        if (!on) return [];
-        const idx = pts.filter(i => inSub(i) && (showNoise || P.narrative[i] !== -1));
-        return [{
-          type: "scattergl", mode: "markers", name: "inauthentic", x: pick(P.x, idx), y: pick(P.y, idx),
-          text: pick(hoverText, idx), customdata: idx, hovertemplate: "%{text}<extra></extra>",
-          marker: {color: idx.map(i => P.band[i] === "bad" ? css("--bad") : css("--warn")),
-            size: idx.map(i => (sizeByUp ? 7 * (0.65 + 2.35 * upR[i]) : 7) + 2), opacity: 0.95,
-            line: {width: 1, color: css("--surface")}},
-        }];
-      },
-      shapes() {
-        if (!on) return [];
-        return halos.map(h => ({
-          type: "circle", layer: "below", xref: "x", yref: "y",
-          x0: h.n.center[0] - h.r, x1: h.n.center[0] + h.r, y0: h.n.center[1] - h.r, y1: h.n.center[1] + h.r,
-          fillcolor: css("--bad"), opacity: Math.min(0.35, 0.06 + 0.45 * h.share),
-          line: {color: css("--bad"), width: h.share >= 0.25 ? 2 : 1},
-        }));
-      },
-      annotations() {
-        if (!on) return [];
-        return halos.filter(h => h.share >= LABEL_SHARE).slice(0, MAX_HALOS_LABELLED).map(h => ({
-          x: h.n.center[0], y: h.n.center[1] + h.r, yanchor: "bottom", showarrow: false,
-          text: `⚠ ${esc(h.n.label)} · ${pct(h.share, 1)}% inauthentic`,
-          font: {size: 11, color: "#fff"}, bgcolor: css("--bad"), borderpad: 3, opacity: 0.92,
-        }));
-      },
-    };
-  })();
-  // ==== end INAUTHENTIC HIGHLIGHT ========================================================
 
   function layout() {
     const t = topicById.get(selected);
@@ -473,7 +426,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
       margin: {l: 8, r: 8, t: 8, b: 8}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
       xaxis: {visible: false, range: viewRanges()[0]}, yaxis: {visible: false, range: viewRanges()[1]},
       showlegend: false, hovermode: "closest", dragmode: "pan",
-      annotations: [...annotations, ...INAUTH.annotations()], shapes: INAUTH.shapes(),  // INAUTH hook
+      annotations,
       hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}, align: "left"},
       // Keep the user's pan/zoom across hovers; reframe on topic or zoom-mode change.
       uirevision: (zoomToTopic ? "topic-" + selected : "all") + "|" + sub,
@@ -569,7 +522,6 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
     for (const id of narrOrder(t)) {
       const n = narrById.get(id);
       const card = cloudCard(n.label, `Narrative ${n.id} · ${fmt.format(n.size)} items` + (HAS_UP ? ` · ${fmt.format(n.upvotes)} upvotes` : ""), n.keywords, n.examples, "", n.summary, n._auth, narrColor(t, n.id));
-      if (n.by_band) card.querySelector(".meta").after(...bandsBar(n.by_band));
       card.addEventListener("mouseenter", () => setHovered(n.id, card));
       card.addEventListener("mouseleave", () => setHovered(null, null));
       cloudsEl.append(card);
@@ -640,6 +592,46 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
       "Hover over a narrative card to highlight its line.";
   }
 
+  // ------------------------------------------- narratives leaning on inauthentic accounts
+  const MAX_INAUTH = 12;
+  const pointsOf = new Map();
+  for (let i = 0; i < N; i++) if (P.narrative[i] !== -1) {
+    if (!pointsOf.has(P.narrative[i])) pointsOf.set(P.narrative[i], []);
+    pointsOf.get(P.narrative[i]).push(i);
+  }
+  function renderInauth() {
+    const panel = document.getElementById("inauth-panel");
+    if (!HAS_AUTH) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const rows = DATA.narratives.map(n => ({n, a: authOf((pointsOf.get(n.id) || []).filter(inSub))}))
+      .filter(r => r.a.n >= MIN_SCORED && r.a.inauth > 0)
+      .sort((p, q) => q.a.inauth - p.a.inauth || q.a.n - p.a.n);
+    document.getElementById("inauth-sub").textContent = (sub ? `in r/${sub} · ` : "") +
+      (rows.length ? `${rows.length} narrative${rows.length > 1 ? "s" : ""} with some inauthentic engagement` : "");
+    const list = document.getElementById("inauth-list");
+    if (!rows.length) {
+      list.replaceChildren(el("li", {className: "inauth-empty", textContent: "No narrative here has scored comments from uncertain or suspicious accounts."}));
+      return;
+    }
+    list.replaceChildren(...rows.slice(0, MAX_INAUTH).map((r, k) => {
+      const t = topicById.get(r.n.topic);
+      const btn = el("button", {type: "button"},
+        el("span", {className: "rk", textContent: String(k + 1)}),
+        el("span", {}, el("span", {className: "nm", textContent: r.n.label}), el("span", {className: "tp", textContent: t ? `in ${t.label}` : ""})),
+        el("span", {className: "pc", textContent: pct(r.a.inauth, 1) + "%"}),
+        el("div", {className: "bar"}, el("span", {style: `width:${Math.max(2, 100 * r.a.inauth)}%`})),
+        el("span", {className: "ds", textContent: `of scored engagement from uncertain/suspicious accounts · authenticity ${Math.round(r.a.score)} · ${r.a.n} scored comments`}));
+      if (r.n.summary) btn.append(el("span", {className: "sm", textContent: r.n.summary}));
+      btn.addEventListener("click", () => {
+        if (r.n.topic !== selected) select(r.n.topic);
+        const card = [...cloudsEl.querySelectorAll(".card")].find(c => c.querySelector("h4")?.textContent.endsWith(r.n.label));
+        setHovered(r.n.id, card || null);
+        mapEl.scrollIntoView({behavior: "smooth", block: "center"});
+      });
+      return el("li", {}, btn);
+    }));
+  }
+
   // ------------------------------------------------------------- behaviour
   function setHovered(id, card) {
     hovered = id;
@@ -672,6 +664,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   document.addEventListener("focusout", () => { tip.hidden = true; });
 
   renderTiles();
+  renderInauth();
   select(selected);
   if (window.Plotly) {
     mapEl.on("plotly_click", ev => {
