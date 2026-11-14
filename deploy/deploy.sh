@@ -31,4 +31,4 @@ ssh "$HOST" 'set -e
   /opt/candor/venv/bin/pip install -q -r requirements.txt
   systemctl restart candor
   for i in $(seq 1 40); do curl -fsS -m 2 http://127.0.0.1:8000/api/health >/dev/null 2>&1 && break; sleep 1; done
-  curl -fsS http://127.0.0.1:8000/api/health && echo "  <- API up at $(git log --oneline -1)"'
+  curl -fsS http://127.0.0.1:8000/api/health && echo "  <- API up at $(runuser -u candor -- git log --oneline -1)"'
