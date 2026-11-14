@@ -137,6 +137,15 @@ def find_recent_done(post_id: str, max_age_s: float) -> str | None:
     return row["id"] if row else None
 
 
+def latest_done(limit: int = 50) -> list[dict]:
+    """The newest finished analysis of each post (for the public demo feed)."""
+    with _db() as c:
+        rows = c.execute("SELECT id, post_id, finished_at FROM analyses a WHERE status = 'done' AND finished_at = "
+                         "(SELECT MAX(finished_at) FROM analyses b WHERE b.post_id = a.post_id AND b.status = 'done') "
+                         "ORDER BY finished_at DESC LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def count_active_for_ip(client_ip: str) -> int:
     with _db() as c:
         return c.execute("SELECT COUNT(*) FROM analyses WHERE client_ip = ? AND status IN ('queued', 'running')",

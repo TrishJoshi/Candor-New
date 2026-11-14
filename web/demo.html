@@ -447,7 +447,7 @@ function renderThread(id){
       ${c.kids.length?`<div class="children">${c.kids.map(node).join("")}</div>`:""}
     </div>`;
   };
-  const back = EXAMPLE ? `<a class="backlink" href="/demo.html">← Demo feed</a>` : LIVE() ? `<a class="backlink" href="/">← Your analyses</a>` : `<a class="backlink" href="#">← Back to feed</a>`;
+  const back = FROM_DEMO ? `<a class="backlink" href="/demo.html">← Demo feed</a>` : LIVE() ? `<a class="backlink" href="/">← Your analyses</a>` : `<a class="backlink" href="#">← Back to feed</a>`;
   const shown = LIVE()
     ? `Showing ${t.comments.length} comments captured${DATA.meta.reported_comments?` of ${DATA.meta.reported_comments}`:""} · ${Object.keys(P).length} most engaged commenters scored`
     : `Showing ${t.comments.length} comments from scored accounts`;
@@ -743,6 +743,7 @@ function demoTour(){ return [
 /* ---------- live analyses: ?id=<analysis> ---------- */
 const AID = new URLSearchParams(location.search).get("id");
 const EXAMPLE = !!AID && (AID==="example" || /^ex-[A-Za-z0-9_-]+$/.test(AID));
+const FROM_DEMO = EXAMPLE && AID!=="example" || new URLSearchParams(location.search).get("from")==="demo";
 const GALLERY = true;  // demo.html: a feed of the bundled analyses
 
 /* ---------- demo feed: web/examples/index.json (built by python -m candor.examples) ---------- */
@@ -756,12 +757,17 @@ async function renderGallery(){
   document.title = "Demo · Candor";
   document.getElementById("search").textContent = "🔍 Search the demo feed";
   document.getElementById("disclaimer").textContent = "Candor analyses of public Reddit threads. Not affiliated with Reddit. Scores are prompts to check sources, not proof.";
-  const r = await fetch("examples/index.json").catch(()=>null);
-  const ex = r && r.ok ? await r.json() : [];
+  // every finished analysis (GET /api/demo, newest first), then the bundled examples
+  const [live, bundled] = await Promise.all([
+    fetch("/api/demo").then(r => r.ok ? r.json() : {analyses: []}).then(j => j.analyses).catch(() => []),
+    fetch("examples/index.json").then(r => r.ok ? r.json() : []).catch(() => []),
+  ]);
+  const seen = new Set(live.map(e => e.post_id));
+  const ex = [...live, ...bundled.filter(e => !seen.has(e.post_id))];
   const card = e => {
     const parts = (e.narratives||[]).map((x,i)=>({...x, color: x.id==null ? OCOL : NCOL[i] || OCOL}));
     const lc = e.label_counts || {}, flagged = (lc.uncertain||0) + (lc.suspicious||0);
-    return `<a class="card post" href="view.html?id=ex-${encodeURIComponent(e.id)}">
+    return `<a class="card post" href="${esc(e.href || "view.html?id=ex-" + encodeURIComponent(e.id))}">
       <div class="votes"><span class="arr">▲</span><span>${fmt(e.score)}</span><span class="arr">▼</span></div>
       <div class="post-main">
         <div class="meta"><span class="sub">r/${esc(e.sub)}</span><span>•</span><span>${agoFrom(e.posted_at, e.scraped_at)}</span></div>
@@ -856,7 +862,7 @@ async function poll(){
 }
 document.querySelectorAll(".candor-nav .tabs a").forEach(a=>{
   const href = a.getAttribute("href");
-  if(href===location.pathname || (EXAMPLE && AID!=="example" && href==="/demo.html") || (AID && !EXAMPLE && href==="/")) a.setAttribute("aria-current","page");
+  if(href===location.pathname || (FROM_DEMO && href==="/demo.html") || (AID && !FROM_DEMO && href==="/")) a.setAttribute("aria-current","page");
 });
 if(AID) document.getElementById("disclaimer").textContent = "Candor analysis of a public Reddit thread. Not affiliated with Reddit. Scores are prompts to check sources, not proof.";
 if(GALLERY) renderGallery();

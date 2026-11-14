@@ -141,3 +141,19 @@ def test_dashboard_map_prefers_server_build(client):
     (store.DATA / "dashboard").mkdir(parents=True, exist_ok=True)
     (store.DATA / "dashboard" / "narrative-map.html").write_text("<html>server build</html>")
     assert "server build" in client.get("/api/dashboard/map").text
+
+
+def test_demo_feed_lists_finished_analyses(client):
+    from candor import api
+    view = {"meta": {"summary": {"scored": 1, "mean_score": 80, "label_counts": {}}, "scraped_at": None},
+            "threads": [{"id": "t3_1abc33", "sub": "x", "title": "T"}], "narratives": []}
+    ids = []
+    for url in ("https://www.reddit.com/r/x/comments/1abc33/t/", "https://www.reddit.com/r/x/comments/1abc44/t/"):
+        aid = client.post("/api/analyze", json={"url": url}).json()["id"]
+        _wait(client, aid)
+        store.write_json(aid, "view.json", view)
+        ids.append(aid)
+    api._DEMO_CARDS.clear()
+    feed = client.get("/api/demo").json()["analyses"]
+    assert [c["id"] for c in feed] == ids[::-1]  # newest first
+    assert feed[0]["href"] == f"view.html?id={ids[1]}&from=demo" and feed[0]["title"] == "T"

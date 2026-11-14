@@ -23,13 +23,14 @@ OUT = ROOT / "web" / "examples"
 TEMPLATE = ROOT / "mockup" / "template.html"
 
 
-def card(aid: str, view: dict) -> dict:
+def card(aid: str, view: dict, href: str | None = None) -> dict:
+    """One demo-feed card. Also used by GET /api/demo for live analyses."""
     t = view["threads"][0]
     s = view["meta"]["summary"]
     top = next((n for n in sorted(view.get("narratives") or [], key=lambda n: -n["weighted_share"])
                 if n["id"] != NOISE_ID), None)
     return {
-        "id": aid, "sub": t.get("sub"), "title": t.get("title"), "score": t.get("score"),
+        "id": aid, "href": href or f"view.html?id=ex-{aid}", "post_id": t.get("id"), "sub": t.get("sub"), "title": t.get("title"), "score": t.get("score"),
         "num_comments": t.get("num_comments"), "posted_at": t.get("posted_at"),
         "scraped_at": view["meta"].get("scraped_at"),
         "n_scored": s.get("scored"), "mean_score": s.get("mean_score"), "label_counts": s.get("label_counts", {}),

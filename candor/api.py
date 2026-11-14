@@ -5,6 +5,7 @@ GET  /api/analyses/{id}           -> status, progress, message, error, summary
 GET  /api/analyses/{id}/view      -> Reddit-mockup data (web/view.html renders it)
 GET  /api/analyses/{id}/map       -> interactive narrative map (HTML)
 GET  /api/dashboard/map           -> Dashboard narrative map (server-built copy with scores, else web/)
+GET  /api/demo                    -> demo feed: every finished analysis (newest per post)
 GET  /api/history                 -> this visitor's past analyses (cookie ``candor_vid``)
 GET  /api/health                  -> {"ok": true}
 
@@ -167,6 +168,30 @@ def get_map(analysis_id: str) -> FileResponse:
     if p is None:
         raise HTTPException(404, "Not ready")
     return FileResponse(p, media_type="text/html")
+
+
+_DEMO_CARDS: dict[str, dict] = {}  # analysis id -> card (finished analyses never change)
+
+
+@app.get("/api/demo")
+def get_demo() -> dict:
+    """Finished analyses for the Demo tab, newest first, one per Reddit post. The page adds
+    the bundled examples (web/examples/) after these, skipping posts already listed."""
+    from candor.examples import card
+    out = []
+    for row in store.latest_done():
+        aid = row["id"]
+        if aid not in _DEMO_CARDS:
+            p = store.read_file(aid, "view.json")
+            if p is None:
+                continue
+            try:
+                _DEMO_CARDS[aid] = card(aid, json.loads(p.read_text(encoding="utf-8")),
+                                        href=f"view.html?id={aid}&from=demo")
+            except (ValueError, KeyError, IndexError, TypeError):
+                continue
+        out.append({**_DEMO_CARDS[aid], "finished_at": row["finished_at"]})
+    return {"analyses": out}
 
 
 @app.get("/api/dashboard/map")
