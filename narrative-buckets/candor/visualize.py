@@ -630,8 +630,12 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
   const fullX = fenced(P.x, 1.5, 0.04), fullY = fenced(P.y, 1.5, 0.04);
   let zoomToTopic = false;
   function viewRanges() {
-    if (!zoomToTopic) return [fullX, fullY];
-    const idx = idxBy(i => P.topic[i] === selected);
+    if (!zoomToTopic) {
+      if (!sub) return [fullX, fullY];
+      const s = idxBy(inSub);  // frame the chosen subreddit's points
+      return [fenced(pick(P.x, s), 1.5, 0.06), fenced(pick(P.y, s), 1.5, 0.06)];
+    }
+    const idx = idxBy(i => P.topic[i] === selected && inSub(i));
     if (!idx.length) return [fullX, fullY];
     return [fenced(pick(P.x, idx), 1.0, 0.18), fenced(pick(P.y, idx), 1.0, 0.18)];
   }
@@ -647,8 +651,14 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
     const available = HAS_AUTH;
     let on = available;
     const MIN_SHARE = 0.05, MAX_HALOS_LABELLED = 6;
+    const box = document.getElementById("enc-inauth");
+    box.hidden = false; document.getElementById("enc").classList.add("on");
+    if (!available) {  // no author scores in this map (yet): show the control, explain why it's off
+      const cb = document.getElementById("hl-inauth"); cb.checked = false; cb.disabled = true;
+      box.style.opacity = ".55";
+      box.dataset.tip = "Not available yet: none of this map's authors have authenticity scores. It switches on once they're scored.";
+    }
     if (available) {
-      document.getElementById("enc-inauth").hidden = false;
       // fading low-scoring dots would hide exactly what this layer shows
       fadeByAuth = false; document.getElementById("fade-auth").checked = false;
       document.getElementById("hl-inauth").addEventListener("change", e => { on = e.target.checked; drawMap(); });
@@ -713,7 +723,7 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
       annotations: [...annotations, ...INAUTH.annotations()], shapes: INAUTH.shapes(),  // INAUTH hook
       hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}, align: "left"},
       // Keep the user's pan/zoom across hovers; reframe on topic or zoom-mode change.
-      uirevision: zoomToTopic ? "topic-" + selected : "all",
+      uirevision: (zoomToTopic ? "topic-" + selected : "all") + "|" + sub,
     };
   }
   const mapEl = document.getElementById("map");
@@ -834,17 +844,28 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
     const idx = idxBy(i => inSub(i) && P.t[i] != null);
     const note = document.getElementById("tl-note");
     if (!window.Plotly || idx.length < 2) { tlEl.replaceChildren(el("p", {className: "empty", textContent: "No timestamps to plot."})); note.textContent = ""; return; }
-    const ts = idx.map(i => P.t[i]).sort((a, b) => a - b);
-    let lo = ts[0];
-    const hi = ts[ts.length - 1], q05 = ts[Math.floor(0.05 * (ts.length - 1))];
-    if (hi - q05 < (hi - lo) / 5) lo = q05;  // a long, thin tail of old items would flatten the chart
-    const old = ts.filter(x => x < lo).length;
+    // Auto-scale to where the selected topic's narratives are active: the shortest time window
+    // holding 90% of their comments (all comments if the topic has too few). A small block of
+    // much older comments would otherwise stretch the axis over months of zeros.
+    const focus = t ? idx.filter(i => t.narratives.includes(P.narrative[i])) : [];
+    const ts = (focus.length >= 5 ? focus : idx).map(i => P.t[i]).sort((a, b) => a - b);
+    const k = Math.max(1, Math.ceil(0.9 * ts.length) - 1);
+    let best = 0;
+    for (let j = 1; j + k < ts.length; j++) if (ts[j + k] - ts[j] < ts[best + k] - ts[best]) best = j;
+    let lo = ts[best], hi = ts[Math.min(best + k, ts.length - 1)];
+    const pad = (hi - lo) * 0.03; lo -= pad; hi += pad;
+    if (hi - lo < 3600) { const mid = (lo + hi) / 2; lo = mid - 1800; hi = mid + 1800; }
+    const outside = idx.filter(i => P.t[i] < lo || P.t[i] > hi).length;
     const [bin, binName] = BINS.find(([b]) => (hi - lo) / b <= 72) || BINS[BINS.length - 1];
     const start = Math.floor(lo / bin) * bin, nb = Math.floor((hi - start) / bin) + 1;
     const xs = Array.from({length: nb}, (_, k) => new Date((start + k * bin) * 1000));
-    const count = pred => { const c = new Array(nb).fill(0); for (const i of idx) { const x = P.t[i]; if (x >= lo && pred(i)) c[Math.floor((x - start) / bin)]++; } return c; };
+    const count = pred => { const c = new Array(nb).fill(0); for (const i of idx) { const x = P.t[i]; if (x >= lo && x <= hi && pred(i)) c[Math.floor((x - start) / bin)]++; } return c; };
+    // the whole discussion goes on its own right-hand axis, so the (smaller) narrative lines
+    // use the full height of the left axis instead of hugging zero
+    const twoAxes = !!t;
     const traces = [{type: "scatter", mode: "lines", name: sub ? `All in r/${sub}` : "Whole discussion", x: xs, y: count(() => true),
-      line: {color: css("--context"), width: 1.5}, fill: "tozeroy", fillcolor: css("--surface-2"), hovertemplate: "%{y}<extra>%{fullData.name}</extra>"}];
+      yaxis: twoAxes ? "y2" : "y", line: {color: css("--context"), width: 1.5}, fill: "tozeroy", fillcolor: "rgba(137,135,129,0.14)",
+      hovertemplate: "%{y}<extra>%{fullData.name}</extra>"}];
     if (t) for (const id of narrOrder(t)) {
       const n = narrById.get(id), y = count(i => P.narrative[i] === id);
       if (!y.some(Boolean)) continue;
@@ -853,15 +874,16 @@ select { width: 100%; padding: 7px 10px; border-radius: 7px; border: 1px solid v
         opacity: hovered === null || hovered === id ? 1 : 0.35, hovertemplate: "%{y}<extra>%{fullData.name}</extra>"});
     }
     Plotly.react(tlEl, traces, {
-      margin: {l: 44, r: 12, t: 8, b: 30}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+      margin: {l: 48, r: 48, t: 8, b: 30}, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
       font: {color: css("--ink-2"), size: 11}, hovermode: "x unified",
-      xaxis: {type: "date", gridcolor: css("--grid"), linecolor: css("--grid")},
-      yaxis: {title: {text: `comments per ${binName}`, font: {size: 11}}, gridcolor: css("--grid"), rangemode: "tozero", fixedrange: true},
+      xaxis: {type: "date", gridcolor: css("--grid"), linecolor: css("--grid"), range: [new Date(start * 1000), new Date((start + nb * bin) * 1000)]},
+      yaxis: {title: {text: twoAxes ? `narrative comments per ${binName}` : `comments per ${binName}`, font: {size: 11}}, gridcolor: css("--grid"), rangemode: "tozero", fixedrange: true},
+      yaxis2: {title: {text: `all comments per ${binName}`, font: {size: 11}}, overlaying: "y", side: "right", showgrid: false, rangemode: "tozero", fixedrange: true, visible: twoAxes},
       legend: {orientation: "h", y: -0.18, font: {size: 11}},
       hoverlabel: {bgcolor: css("--surface"), bordercolor: css("--border"), font: {color: css("--ink"), size: 12}},
     }, {responsive: true, displaylogo: false, modeBarButtonsToRemove: ["select2d", "lasso2d", "toImage", "autoScale2d"]});
     document.getElementById("tl-sub").textContent = t ? `whole discussion and the narratives of “${t.label}”` : "";
-    note.textContent = (old ? `${fmt.format(old)} older item(s) before ${new Date(lo * 1000).toLocaleDateString()} aren't shown. ` : "") +
+    note.textContent = (outside ? `Zoomed to ${new Date(lo * 1000).toLocaleString()} – ${new Date(hi * 1000).toLocaleString()}, where this topic is active; ${fmt.format(outside)} item(s) outside it aren't shown. ` : "") +
       "Hover over a narrative card to highlight its line.";
   }
 
