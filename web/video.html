@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Video Demo · Candor</title>
+<meta name="description" content="A two-minute narrated tour of Candor: account authenticity, narratives, and the narrative dashboard.">
+<style>
+:root{--text:#14182b;--muted:#5d6478;--border:#e3e7f0;--page:#f6f7fb;--blue:#3662e3;--blue-soft:#eaf0fd;--green:#1f9d55}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{min-height:100vh;min-height:100dvh;background:var(--page);color:var(--text);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+/* nav: same as dashboard.html */
+.candor-nav{background:#14182b;color:#fff;display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;padding:8px 16px;padding-top:max(8px,env(safe-area-inset-top));font:600 14px/1.2 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+.candor-nav a{text-decoration:none}
+.candor-nav .brand{display:flex;align-items:center;gap:8px;color:#fff;font-weight:800;font-size:16px;margin-right:6px}
+.candor-nav .flag{display:flex;gap:2px}.candor-nav .flag i{width:4px;height:13px;border-radius:1px}
+.candor-nav .tabs{display:flex;gap:4px;flex-wrap:wrap}
+.candor-nav .tabs a{color:#c9cee0;padding:6px 10px;border-radius:7px}
+.candor-nav .tabs a:hover{color:#fff;background:rgba(255,255,255,.08)}
+.candor-nav .tabs a[aria-current="page"]{color:#fff;background:rgba(255,255,255,.14)}
+
+main{max-width:1180px;margin:0 auto;padding:20px 16px 40px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;margin-bottom:14px}
+h1{font-size:24px;margin:0;font-weight:800;letter-spacing:-.02em}
+.head p{margin:2px 0 0;color:var(--muted);max-width:640px}
+.btn{display:inline-flex;align-items:center;gap:8px;font:600 14px/1 Inter,system-ui,sans-serif;padding:11px 16px;border-radius:10px;border:0;background:var(--blue);color:#fff;text-decoration:none;cursor:pointer;white-space:nowrap}
+.btn:hover{filter:brightness(1.08)}
+.btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.btn small{font-weight:500;opacity:.8}
+.btn svg{width:16px;height:16px}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.player{background:#000;border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(20,24,43,.18);aspect-ratio:16/9}
+.player video{display:block;width:100%;height:100%;background:#000}
+
+.chapters{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.chapters button{font:600 13px/1 Inter,system-ui,sans-serif;padding:8px 11px;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--muted);cursor:pointer}
+.chapters button:hover{color:var(--text);border-color:#c8cee0}
+.chapters button[aria-current="true"]{background:#14182b;border-color:#14182b;color:#fff}
+.chapters button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.chapters b{font-variant-numeric:tabular-nums;font-weight:500;opacity:.7;margin-right:5px}
+
+.card{background:#fff;border:1px solid var(--border);border-radius:14px}
+.transcript{display:flex;flex-direction:column;max-height:min(70vh,560px)}
+.transcript h2{font-size:14px;margin:0;padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+.transcript h2 span{color:var(--muted);font-weight:500}
+.cues{list-style:none;margin:0;padding:6px;overflow:auto}
+.cues button{all:unset;box-sizing:border-box;display:flex;gap:10px;width:100%;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--muted)}
+.cues button:hover{background:var(--page);color:var(--text)}
+.cues button:focus-visible{outline:2px solid var(--blue)}
+.cues button[aria-current="true"]{background:var(--blue-soft);color:var(--text)}
+.cues time{font-variant-numeric:tabular-nums;font-size:12px;color:var(--blue);padding-top:2px;flex:none;width:34px}
+.note{font-size:13px;color:var(--muted);margin:14px 0 0}
+.note a{color:var(--blue)}
+</style>
+</head>
+<body>
+<nav class="candor-nav" aria-label="Candor">
+  <a class="brand" href="/"><span class="flag" aria-hidden="true"><i style="background:#3662e3"></i><i style="background:#1f9d55"></i><i style="background:#e03e3e"></i></span>Candor</a>
+  <div class="tabs"><a href="/">Analyze</a><a href="demo.html">Demo</a><a href="dashboard.html">Dashboard</a><a href="video.html" aria-current="page">Video Demo</a></div>
+</nav>
+<main>
+  <div class="head">
+    <div>
+      <h1>Candor in two minutes</h1>
+      <p>A narrated walkthrough of the live site: how accounts are scored, how comments become narratives, and the dashboard across subreddits.</p>
+    </div>
+    <a class="btn" id="dl" href="video/candor-demo.mp4" download="candor-demo.mp4">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 21h16"/></svg>
+      Download video <small id="dlmeta">MP4</small>
+    </a>
+  </div>
+  <div class="layout">
+    <section>
+      <div class="player">
+        <video id="vid" controls playsinline preload="metadata" poster="video/poster.jpg" src="video/candor-demo.mp4">
+          Your browser can't play this video. <a href="video/candor-demo.mp4" download>Download it</a> instead.
+        </video>
+      </div>
+      <div class="chapters" id="chapters" role="group" aria-label="Chapters"></div>
+      <p class="note">Captions are part of the video. Everything shown is the real site: <a href="demo.html">the demo feed</a>, <a href="dashboard.html">the dashboard</a>, or <a href="/">analyse your own post</a>.</p>
+    </section>
+    <aside class="card transcript" aria-label="Transcript">
+      <h2>Transcript <span id="dur"></span></h2>
+      <ol class="cues" id="cues"></ol>
+    </aside>
+  </div>
+</main>
+<script>
+(async function () {
+  const vid = document.getElementById('vid'), cuesEl = document.getElementById('cues'), chEl = document.getElementById('chapters');
+  const LABEL = {hook: 'Intro', problem: 'Why it matters', analyze: 'Analyze a post', feed: 'Demo feed',
+    accounts: 'Account authenticity', narratives: 'Narratives', filter: 'Filter', dashboard: 'Dashboard',
+    weather: 'Narrative weather', closing: 'Closing'};
+  const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const seek = t => { vid.currentTime = t + 0.01; vid.play().catch(() => {}); };
+
+  // file size on the download button (HEAD is cheap; skip silently if it fails)
+  fetch('video/candor-demo.mp4', {method: 'HEAD'}).then(r => {
+    const n = +r.headers.get('content-length'); if (n) document.getElementById('dlmeta').textContent = 'MP4 · ' + (n / 1e6).toFixed(1) + ' MB';
+  }).catch(() => {});
+
+  let data;
+  try { data = await (await fetch('video/transcript.json')).json(); } catch { return; }
+  document.getElementById('dur').textContent = mmss(data.duration);
+  const chapters = Object.entries(data.chapters).map(([k, t]) => ({k, t}));
+  chEl.innerHTML = chapters.map(c => `<button type="button" data-t="${c.t}"><b>${mmss(c.t)}</b>${esc(LABEL[c.k] || c.k)}</button>`).join('');
+  cuesEl.innerHTML = data.cues.map(c => `<li><button type="button" data-t="${c.start}"><time>${mmss(c.start)}</time><span>${esc(c.text)}</span></button></li>`).join('');
+  [chEl, cuesEl].forEach(el => el.addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) seek(+b.dataset.t); }));
+
+  const cueBtns = [...cuesEl.querySelectorAll('button')], chBtns = [...chEl.querySelectorAll('button')];
+  let lastCue = -1;
+  vid.addEventListener('timeupdate', () => {
+    const t = vid.currentTime;
+    const ci = data.cues.findLastIndex(c => c.start <= t);
+    const hi = chapters.findLastIndex(c => c.t <= t);
+    chBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === hi)));
+    if (ci === lastCue) return;
+    lastCue = ci;
+    cueBtns.forEach((b, i) => b.setAttribute('aria-current', String(i === ci)));
+    const b = cueBtns[ci];  // keep the spoken line in view inside the transcript only
+    if (b && !vid.paused) { const box = cuesEl.getBoundingClientRect(), r = b.getBoundingClientRect();
+      if (r.top < box.top || r.bottom > box.bottom) cuesEl.scrollTop += r.top - box.top - box.height / 3; }
+  });
+})();
+</script>
+</body>
+</html>

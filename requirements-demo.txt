@@ -1,0 +1,6 @@
+# Dev-only tooling for rebuilding the "Video Demo" tab's MP4 (tools/demo_video/).
+# Not needed by the server: deploy/deploy.sh installs requirements.txt only.
+#   python -m venv .venv-demo && .venv-demo/bin/pip install -r requirements-demo.txt
+# Also needs ffmpeg and a Chromium on PATH (system packages).
+playwright>=1.45     # drives Chromium through the live site and records the screen
+piper-tts>=1.2       # local neural text-to-speech for the narration (no cloud TTS)
