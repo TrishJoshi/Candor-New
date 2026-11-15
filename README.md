@@ -10,6 +10,7 @@ Built for Junction 2026. Live at **https://candor-junction-2026.tech**. The site
 - **Analyze** (`web/index.html`): paste any public Reddit link and the full pipeline runs live on it. Your past analyses are listed below the form (remembered with a cookie).
 - **Demo** (`web/demo.html`): a feed of real threads analysed in advance by the live pipeline, each opening in the same result view as a live analysis (`view.html?id=ex-<id>`). Bundled with `python -m candor.examples <analysis_id> ...` into `web/examples/`.
 - **Dashboard** (`web/dashboard.html`): the narrative map of 4,453 posts and comments from four subreddits.
+- **Video Demo** (`web/video.html`): a narrated walkthrough of the site (under 2 minutes) with chapters, a transcript and a download button. The MP4 is committed in `web/video/`.
 
 A finished analysis opens in the same Reddit mockup as the demo (`web/view.html?id=<analysis>`): every comment shows its author's authenticity badge and its narrative, and the sidebar ranks the thread's narratives by engagement and by how credible their commenters are.
 
@@ -82,6 +83,7 @@ Locally, FastAPI also serves `web/`, so you don't need nginx. The live pipeline 
 - Run the pipeline without the web app: `python -m candor.live <reddit_url>` (prints the `view.html?id=` to open).
 - Dashboard map with author scores: `python -m candor.dashboard all` (scrapes and scores all 3,514 authors, ~1 credit each, then builds `data/dashboard/narrative-map.html`, which `GET /api/dashboard/map` serves ahead of the committed `web/dashboard/narrative-map.html`). `summarize` writes AI summaries; `build` refreshes the committed fallback. Inputs live in `data/dashboard/` (not in git).
 - **Narrative weather** (Dashboard → time-lapse, `GET /api/dashboard/timelapse`): an animated replay of the narrative map, built by `candor.dashboard build`/`build-data` from the same data. All of it lives in `narrative-buckets/candor/timelapse.py`; to remove it, delete that module, its two calls in `candor/dashboard.py`, the endpoint and the view switch in `web/dashboard.html`.
+- **Video Demo** (`web/video/candor-demo.mp4`, `poster.jpg`, `transcript.json`): rebuilt by `tools/demo_video/build.py`, which records the site with Playwright, narrates it with Piper (local TTS) and encodes it with ffmpeg. Dev-only deps: `python -m venv .venv-demo && .venv-demo/bin/pip install -r requirements-demo.txt` (plus ffmpeg and Chromium). The storyboard (narration + clicks) is the `SCENES` list in that file. Rebuild after UI changes so the video stays accurate; see the script's docstring for recording an unreleased checkout locally.
 - Rebuild stored narrative maps after changing the map: `python -m candor.rebuild --all` (or `<id> ...`). Runs from before `embeddings.npy` was stored are re-embedded once with Gemini; no context.dev credits.
 - Tests: `python -m pytest` (app, offline) and `cd narrative-buckets && python -m pytest` (Stage 2 engine).
 
@@ -183,6 +185,8 @@ Anyone with an analysis link can open it (ids are random); the history list only
 | [web/view.html](web/view.html) | A live analysis in the Reddit mockup (`?id=`); the template without data |
 | [web/demo.html](web/demo.html) | Simulated Reddit feed (template + dataset-2 data) |
 | [web/dashboard.html](web/dashboard.html) | Dashboard tab; embeds `web/dashboard/narrative-map.html` |
+| [web/video.html](web/video.html) | Video Demo tab: player, download, chapters and transcript for `web/video/` |
+| [tools/demo_video/build.py](tools/demo_video/build.py) | Builds the narrated demo video (`requirements-demo.txt`) |
 | [web/analyze.html](web/analyze.html) | Redirects old links to the Analyze tab |
 | [web/tour.js](web/tour.js) | Guided tutorial shared by all pages |
 | `web/example/` | The tutorial's example result (`view.json` + `map.html` of one r/politics analysis) |

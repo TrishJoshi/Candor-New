@@ -10,3 +10,4 @@ narrative-buckets/.env
 *.db
 *.db-*
 web/reports/
+.venv-demo/
