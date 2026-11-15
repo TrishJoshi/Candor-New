@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reddit Authenticity Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
 <style>
 :root{
   --bg:#dae0e6; --card:#ffffff; --card-2:#f6f7f8; --border:#ccc; --border-soft:#edeff1;
@@ -80,6 +84,19 @@ header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom
 .lv-bad{color:var(--bad);background:var(--bad-bg)}
 .lv-na{color:var(--na);background:var(--na-bg)}
 .shield-off .badge{display:none}
+/* Candor score: the post's authenticity at a glance (top of every post; sticky in the thread view) */
+.cscore{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap;font:600 12px/1.3 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--muted)}
+.cscore .cs-brand{display:inline-flex;align-items:center;gap:6px;color:var(--text);font-weight:800;font-size:12.5px}
+.cscore .cs-num{display:inline-flex;align-items:baseline;gap:4px;border-radius:999px;padding:2px 9px;font-weight:800;font-size:13px}
+.cscore .cs-num small{font-size:10.5px;font-weight:700;opacity:.85}
+.cscore .cs-flag{color:var(--warn)}
+.post .cscore{margin:0 0 6px}
+.cscore.bar{position:sticky;top:48px;z-index:15;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:8px 12px;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.cscore.bar .cs-num{font-size:15px;padding:3px 11px}
+.cscore.bar .cs-title{flex:1 1 0;min-width:0;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cscore.bar .cs-more{margin-left:auto;font-weight:700}
+.shield-off .cscore{display:none}
+.side .hd .clogo{background:#fff;border-radius:4px;padding:3px 4px}
 
 /* thread page */
 .thread .post{cursor:default}
@@ -131,15 +148,6 @@ header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom
 .foot-note{font-size:11px;color:var(--muted);margin-top:8px}
 .disclaimer{max-width:1000px;margin:0 auto 24px;padding:0 16px;font-size:11px;color:var(--muted);text-align:center}
 
-/* Candor site nav (shared with the other pages) */
-.candor-nav{background:#14182b;color:#fff;display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;padding:8px 16px;font:600 14px/1.2 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
-.candor-nav .brand{display:flex;align-items:center;gap:8px;color:#fff;font-weight:800;font-size:16px;margin-right:6px}
-.candor-nav .brand:hover{text-decoration:none}
-.candor-nav .flag{display:flex;gap:2px}.candor-nav .flag i{width:4px;height:13px;border-radius:1px}
-.candor-nav .tabs{display:flex;gap:4px;flex-wrap:wrap}
-.candor-nav .tabs a{color:#c9cee0;padding:6px 10px;border-radius:7px}
-.candor-nav .tabs a:hover{color:#fff;background:rgba(255,255,255,.08);text-decoration:none}
-.candor-nav .tabs a[aria-current="page"]{color:#fff;background:rgba(255,255,255,.14)}
 
 /* live analyses: on phones the thread comes first, the summary sidebar after it */
 @media (max-width:900px){body.live .side{order:1}}
@@ -254,15 +262,15 @@ a.post:hover{text-decoration:none}
 </style>
 </head>
 <body>
-<nav class="candor-nav" aria-label="Candor">
-  <a class="brand" href="/"><span class="flag" aria-hidden="true"><i style="background:#3662e3"></i><i style="background:#1f9d55"></i><i style="background:#e03e3e"></i></span>Candor</a>
+<nav class="cnav" aria-label="Candor">
+  <a class="brand" href="/"><span class="clogo" aria-hidden="true"><i></i><i></i><i></i></span>Candor</a>
   <div class="tabs"><a href="/">Analyze</a><a href="/demo.html">Demo</a><a href="/dashboard.html">Dashboard</a></div>
-  <button class="tour-btn" type="button" data-tour-start style="margin-left:auto">? Tutorial</button>
+  <div class="right"><button class="tour-btn" type="button" data-tour-start>? Tutorial</button></div>
 </nav>
 <header class="top">
   <div class="logo" onclick="location.hash=''"><div class="snoo">●</div><span>reddit</span></div>
   <div class="search" id="search">🔍 Search Reddit</div>
-  <button class="shield-toggle" id="shieldBtn" aria-pressed="true" title="Toggle authenticity labels">🛡️ <span>Authenticity labels on</span></button>
+  <button class="shield-toggle" id="shieldBtn" aria-pressed="true" title="Toggle authenticity labels"><span class="clogo sm" aria-hidden="true"><i></i><i></i><i></i></span> <span>Authenticity labels on</span></button>
 </header>
 
 <div class="wrap">
@@ -381,6 +389,30 @@ document.addEventListener("keydown", e=>{ if(e.key==="Escape") pop.classList.rem
 addEventListener("scroll", ()=>pop.classList.remove("open"), {passive:true});
 
 /* ---------- thread health ---------- */
+const LOGO = `<span class="clogo sm" aria-hidden="true"><i></i><i></i><i></i></span>`;
+const band = v => v==null ? "na" : v>=70 ? "ok" : v>=40 ? "warn" : "bad";
+// The post's Candor score: average authenticity of its scored participants, plus how many are flagged.
+// o = {mean, n, flagged, dots?, title?, more?}; bar = the sticky version for the thread view.
+function candorScore(o, bar){
+  const m = o.mean==null ? null : Math.round(o.mean), l = band(m);
+  const why = m==null ? "No participant in this thread has an authenticity score yet."
+    : `Candor score: the average authenticity (0–100) of the ${o.n} scored participants in this thread. 70+ likely authentic, 40–69 uncertain, below 40 suspicious.` + (o.flagged?` ${o.flagged} of them are flagged as uncertain or suspicious.`:"");
+  return `<div class="cscore${bar?" bar":""}"${tip(why)}>
+    <span class="cs-brand">${LOGO}Candor</span>
+    <span class="cs-num lv-${l}">${m==null?"n/a":m}<small>/100</small></span>
+    ${o.dots?`<span class="dots">${o.dots}</span>`:""}
+    <span>${o.n} scored${o.flagged?` · <span class="cs-flag">${o.flagged} flagged</span>`:""}</span>
+    ${bar && o.title?`<span class="cs-title">${esc(o.title)}</span>`:""}
+    ${o.more||""}
+  </div>`;
+}
+function threadScore(t){
+  const us = threadAuthors(t).filter(u=>P[u]);
+  const v = us.map(u=>P[u].score).filter(x=>x!=null);
+  return {mean: v.length ? v.reduce((a,b)=>a+b,0)/v.length : null, n: us.length,
+    flagged: us.filter(u=>["warn","bad"].includes(lv(u))).length,
+    dots: us.slice(0,12).map(u=>`<i style="background:${color(lv(u))}"></i>`).join("")};
+}
 function threadAuthors(t){
   const s = new Set(t.comments.map(c=>c.author)); if(t.author) s.add(t.author); return [...s];
 }
@@ -389,7 +421,7 @@ function health(t){
   const flagged = us.filter(u=>["warn","bad"].includes(lv(u))).length;
   const dots = us.slice(0,12).map(u=>`<i style="background:${color(lv(u))}"></i>`).join("");
   const why = `${us.length} participants in this thread have an authenticity score; each dot is one of them (green likely authentic, amber uncertain, red suspicious).` + (flagged?` ${flagged} are flagged as uncertain or suspicious.`:"");
-  return `<span class="thread-health"${tip(why)}>🛡️ <span class="dots">${dots}</span> ${us.length} scored${flagged?` · <span style="color:var(--warn)">${flagged} flagged</span>`:""}</span>`;
+  return `<span class="thread-health"${tip(why)}>${LOGO} <span class="dots">${dots}</span> ${us.length} scored${flagged?` · <span style="color:var(--warn)">${flagged} flagged</span>`:""}</span>`;
 }
 
 /* ---------- views ---------- */
@@ -402,10 +434,11 @@ function postCard(t, full){
   return `<article class="card post" data-thread="${t.id}">
     <div class="votes"><span class="arr">▲</span><span${tip(TIP.postVotes)}>${fmt(t.score)}</span><span class="arr">▼</span></div>
     <div class="post-main">
+      ${full ? "" : candorScore(threadScore(t))}
       <div class="meta"><span class="sub">r/${esc(t.sub)}</span><span>•</span>${by}<span>${ago(t.posted_at)}</span></div>
       <h2>${esc(t.title)}</h2>${dom}${body}
       ${full && LIVE() ? pill() : ""}
-      <div class="actions"><span>💬 ${n} Comments</span>${health(t)}</div>
+      <div class="actions"><span>💬 ${n} Comments</span>${full ? "" : health(t)}</div>
     </div></article>`;
 }
 function renderFeed(){
@@ -451,7 +484,9 @@ function renderThread(id){
   const shown = LIVE()
     ? `Showing ${t.comments.length} comments captured${DATA.meta.reported_comments?` of ${DATA.meta.reported_comments}`:""} · ${Object.keys(P).length} most engaged commenters scored`
     : `Showing ${t.comments.length} comments from scored accounts`;
+  const more = LIVE() ? `<a class="cs-more" href="javascript:void 0" data-pill>Breakdown ›</a>` : "";
   document.getElementById("main").innerHTML = `<div class="thread">${back}
+    ${candorScore({...threadScore(t), title: t.title, more}, true)}
     ${postCard(t,true)}
     ${t.author && state.shield ? `<div class="card" style="padding:0 12px;margin:-4px 0 10px">${warnFor(t.author)}</div>`:""}
     <div class="card comments"><div class="meta">${shown} · <a href="${esc(t.url)}" target="_blank" rel="noopener">original thread ↗</a></div>
@@ -475,7 +510,7 @@ function renderSide(){
   const CDESC = {C1:"C1 Account profile: is this an established, real person?", C2:"C2 Content originality: did this person write it?", C3:"C3 Coordination: is it acting in concert with others?", C4:"C4 Engagement legitimacy: did it earn its karma?", C5:"C5 Behavioural history: does the account do this elsewhere?"};
   const crit = ["C1","C2","C3","C4","C5"].map(k=>`<li><b>${k}</b><span${tip(CDESC[k]+" "+TIP.weight)}>${CRIT[k]} <span style="color:var(--muted)">(w${W[k]})</span></span><span class="num" style="text-align:right"${tip(`Average ${k} score across the ${s.scored} scored accounts. 100% = no warning signs.`)}>${s.mean_criterion_pct[k]}%</span></li>`).join("");
   document.getElementById("side").innerHTML = (LIVE() ? narrativesCard() : "") + `
-    <div class="card" id="shieldCard"><div class="hd shield">🛡️ Authenticity Shield</div><div class="bd">
+    <div class="card" id="shieldCard"><div class="hd shield">${LOGO} Authenticity Shield</div><div class="bd">
       <p>${LIVE() ? "The thread's most engaged commenters are" : "Every account here is"} scored 0–100 on five signals of authentic behaviour. Click any badge to see why.</p>
       <div class="dist">${dist}</div><div class="legend">${leg}</div>
       <p style="margin-top:12px;font-size:12px;color:var(--muted)"><span class="num"${tip("The average authenticity score (0–100) of the scored accounts. "+TIP.score)}>Mean score ${s.mean_score}</span> across ${s.scored} scored profiles</p>
@@ -770,12 +805,12 @@ async function renderGallery(){
     return `<a class="card post" href="${esc(e.href || "view.html?id=ex-" + encodeURIComponent(e.id))}">
       <div class="votes"><span class="arr">▲</span><span>${fmt(e.score)}</span><span class="arr">▼</span></div>
       <div class="post-main">
+        ${candorScore({mean: e.mean_score, n: e.n_scored, flagged})}
         <div class="meta"><span class="sub">r/${esc(e.sub)}</span><span>•</span><span>${agoFrom(e.posted_at, e.scraped_at)}</span></div>
         <h2>${esc(e.title)}</h2>
         ${pill(parts, false)}
         ${e.top_summary?`<div class="gsum"><span class="ai">AI summary</span>${esc(e.top_summary)}</div>`:""}
         <div class="actions"><span>💬 ${e.num_comments ?? "?"} Comments</span>
-          <span class="thread-health"${tip(`${e.n_scored} of the most engaged commenters scored; average authenticity ${e.mean_score==null?"n/a":Math.round(e.mean_score)}/100.`)}>🛡️ ${e.n_scored} scored · avg ${e.mean_score==null?"n/a":Math.round(e.mean_score)}${flagged?` · <span style="color:var(--warn)">${flagged} flagged</span>`:""}</span>
           <span style="color:var(--link)">Open analysis →</span></div>
       </div></a>`;
   };
@@ -860,7 +895,7 @@ async function poll(){
     if(a.status!=="error") setTimeout(poll, 1500);
   }catch(_){ setTimeout(poll, 3000); }
 }
-document.querySelectorAll(".candor-nav .tabs a").forEach(a=>{
+document.querySelectorAll(".cnav .tabs a").forEach(a=>{
   const href = a.getAttribute("href");
   if(href===location.pathname || (FROM_DEMO && href==="/demo.html") || (AID && !FROM_DEMO && href==="/")) a.setAttribute("aria-current","page");
 });
