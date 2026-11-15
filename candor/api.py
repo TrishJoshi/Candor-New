@@ -35,7 +35,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from candor import store
-from candor.urls import normalize_reddit_url
+from candor.urls import is_reddit_share_link, normalize_reddit_url, resolve_share_link
 from candor.view import distribution
 
 logger = logging.getLogger("candor.api")
@@ -129,6 +129,10 @@ def health() -> dict:
 @app.post("/api/analyze")
 def analyze_post(req: AnalyzeRequest, request: Request, response: Response) -> dict:
     norm = normalize_reddit_url(req.url)
+    if not norm and is_reddit_share_link(req.url):
+        norm = resolve_share_link(req.url)
+        if not norm:
+            raise HTTPException(400, "Couldn't open that Reddit share link. Try the post's full link (…reddit.com/r/<sub>/comments/…)")
     if not norm:
         raise HTTPException(400, "Please paste a Reddit post link (…reddit.com/r/<sub>/comments/…)")
     canonical, post_id = norm

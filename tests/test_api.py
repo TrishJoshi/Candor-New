@@ -6,11 +6,12 @@ import sys
 import time
 import types
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from candor import store
-from candor.urls import normalize_reddit_url
+from candor.urls import is_reddit_share_link, normalize_reddit_url, resolve_share_link
 
 
 @pytest.mark.parametrize("url, expected", [
@@ -27,6 +28,41 @@ from candor.urls import normalize_reddit_url
 def test_normalize(url, expected):
     assert normalize_reddit_url(url) == expected
 
+
+
+def _reddit(routes: dict[str, str]) -> httpx.Client:
+    """Fake Reddit: path -> Location (307); anything else 404."""
+    def handler(req: httpx.Request) -> httpx.Response:
+        loc = routes.get(req.url.path)
+        return httpx.Response(307, headers={"location": loc}) if loc else httpx.Response(404)
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+@pytest.mark.parametrize("url, expected", [
+    ("https://www.reddit.com/r/politics/s/AbC123xYz", True),
+    ("https://reddit.com/r/politics/s/AbC123xYz/", True),
+    ("https://www.reddit.com/r/politics/s/", False),
+    ("https://www.reddit.com/r/politics/comments/1abcd2/", False),
+    ("https://evil.com/r/x/s/AbC123xYz", False),
+])
+def test_is_share_link(url, expected):
+    assert is_reddit_share_link(url) is expected
+
+
+def test_resolve_share_link():
+    c = _reddit({"/r/politics/s/AbC123xYz": "https://www.reddit.com/r/politics/comments/1xvsfrn/t/?share_id=q"})
+    assert resolve_share_link("https://www.reddit.com/r/politics/s/AbC123xYz", c) == (
+        "https://www.reddit.com/r/politics/comments/1xvsfrn/", "t3_1xvsfrn")
+
+
+@pytest.mark.parametrize("loc", [
+    "https://www.reddit.com/r/politics/",            # expired/invalid token -> subreddit
+    "https://evil.com/r/x/comments/1abcd2/",          # never trust off-Reddit redirects
+    None,                                             # no redirect at all
+])
+def test_resolve_share_link_rejects(loc):
+    c = _reddit({"/r/politics/s/AbC123xYz": loc} if loc else {})
+    assert resolve_share_link("https://www.reddit.com/r/politics/s/AbC123xYz", c) is None
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
@@ -157,3 +193,17 @@ def test_demo_feed_lists_finished_analyses(client):
     feed = client.get("/api/demo").json()["analyses"]
     assert [c["id"] for c in feed] == ids[::-1]  # newest first
     assert feed[0]["href"] == f"view.html?id={ids[1]}&from=demo" and feed[0]["title"] == "T"
+
+
+def test_analyze_accepts_share_link(client, monkeypatch):
+    seen = []
+    def fake(url):
+        seen.append(url)
+        return "https://www.reddit.com/r/x/comments/1shr01/", "t3_1shr01"
+    monkeypatch.setattr("candor.api.resolve_share_link", fake)
+    r = client.post("/api/analyze", json={"url": "https://www.reddit.com/r/x/s/AbC123xYz"})
+    assert r.status_code == 200 and seen == ["https://www.reddit.com/r/x/s/AbC123xYz"]
+    _wait(client, r.json()["id"])
+    monkeypatch.setattr("candor.api.resolve_share_link", lambda url: None)
+    r = client.post("/api/analyze", json={"url": "https://www.reddit.com/r/x/s/Expired99"})
+    assert r.status_code == 400 and "share link" in r.json()["detail"]

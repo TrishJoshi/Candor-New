@@ -175,7 +175,7 @@ function validReddit(u) {
   try {
     const p = new URL(u.trim()); const h = p.hostname.toLowerCase();
     return /^https?:$/.test(p.protocol) && (h === 'redd.it' ||
-      ((h === 'reddit.com' || h.endsWith('.reddit.com')) && p.pathname.includes('/comments/')));
+      ((h === 'reddit.com' || h.endsWith('.reddit.com')) && /\/(comments\/|s\/[A-Za-z0-9_-]+\/?$)/.test(p.pathname)));
   } catch { return false; }
 }
 
