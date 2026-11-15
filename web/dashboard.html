@@ -5,48 +5,74 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dashboard · Candor</title>
 <meta name="description" content="Narratives across Reddit: 4,453 posts and comments from four subreddits, clustered and named.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="nav.css">
 <style>
-:root{--text:#14182b;--muted:#5d6478;--border:#e3e7f0;--page:#f6f7fb}
+:root{--text:#14182b;--muted:#5d6478;--border:#e3e7f0;--page:#fcfcfb;--blue:#3662e3;--blue-soft:#eaf0fd}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;background:var(--page);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
-.candor-nav{background:#14182b;color:#fff;display:flex;align-items:center;gap:6px 18px;flex-wrap:wrap;padding:8px 16px;padding-top:max(8px,env(safe-area-inset-top));font:600 14px/1.2 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
-.candor-nav a{text-decoration:none}
-.candor-nav .brand{display:flex;align-items:center;gap:8px;color:#fff;font-weight:800;font-size:16px;margin-right:6px}
-.candor-nav .flag{display:flex;gap:2px}.candor-nav .flag i{width:4px;height:13px;border-radius:1px}
-.candor-nav .tabs{display:flex;gap:4px;flex-wrap:wrap}
-.candor-nav .tabs a{color:#c9cee0;padding:6px 10px;border-radius:7px}
-.candor-nav .tabs a:hover{color:#fff;background:rgba(255,255,255,.08)}
-.candor-nav .tabs a[aria-current="page"]{color:#fff;background:rgba(255,255,255,.14)}
-.intro{padding:14px 16px 10px;max-width:1400px;width:100%;margin:0 auto}
-.intro h1{font-size:20px;margin:0 0 2px;font-weight:750;letter-spacing:-.01em}
-.intro p{margin:0;color:var(--muted);max-width:900px}
-.frame{flex:1;display:flex;min-height:640px;border-top:1px solid var(--border)}
-/* view switch: narrative map | narrative weather (time-lapse, candor/timelapse.py) */
-.views{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
-.views button{font:600 13px/1 Inter,system-ui,sans-serif;padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--muted);cursor:pointer}
-.views button[aria-pressed="true"]{background:#14182b;border-color:#14182b;color:#fff}
-.views button:focus-visible{outline:2px solid #3662e3;outline-offset:2px}
-iframe{flex:1;width:100%;border:0;background:#fcfcfb}
+/* toolbar: just the view switch (narrative map | narrative weather, candor/timelapse.py) */
+.toolbar{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:10px 24px;background:#fff;border-bottom:1px solid var(--border)}
+.toolbar h1{font-size:15px;font-weight:700;margin:0;letter-spacing:-.01em}
+.views{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:10px;background:#fff}
+.views button{font:600 13px/1 Inter,system-ui,sans-serif;padding:7px 12px;border-radius:7px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.views button:hover{color:var(--text);background:#f3f5f9}
+.views button[aria-pressed="true"]{background:var(--blue-soft);color:var(--blue)}
+.views button:focus-visible,.about-btn:focus-visible,.info .x:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.about-btn{margin-left:auto;font:600 13px/1 Inter,system-ui,sans-serif;padding:7px 11px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--muted);cursor:pointer}
+.about-btn:hover{color:var(--text)}
+.about-btn[hidden]{display:none}
+.views button{white-space:nowrap}
+@media (max-width:640px){.toolbar{padding:8px 16px}.toolbar h1{display:none}.views{max-width:100%;overflow-x:auto}}
+.frame{flex:1;display:flex;min-height:640px}
+iframe{flex:1;width:100%;border:0;background:var(--page)}
+/* about this data: docked at the bottom, closable (remembered in this browser) */
+.info{display:flex;align-items:flex-start;gap:12px;padding:10px 16px 10px 24px;padding-bottom:max(10px,env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}
+.info[hidden]{display:none}
+.info p{margin:0;max-width:1100px}
+.info b{color:var(--text)}
+.info .x{margin-left:auto;flex:none;width:28px;height:28px;border-radius:7px;border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;cursor:pointer}
+.info .x:hover{background:#f3f5f9;color:var(--text)}
 </style>
 </head>
 <body>
-<nav class="candor-nav" aria-label="Candor">
-  <a class="brand" href="/"><span class="flag" aria-hidden="true"><i style="background:#3662e3"></i><i style="background:#1f9d55"></i><i style="background:#e03e3e"></i></span>Candor</a>
-  <div class="tabs"><a href="/">Analyze</a><a href="demo.html">Demo</a><a href="dashboard.html" aria-current="page">Dashboard</a><a href="video.html">Video Demo</a></div>
-  <button class="tour-btn" type="button" data-tour-start style="margin-left:auto;color:#fff">? Tutorial</button>
+<nav class="cnav" aria-label="Candor">
+  <a class="brand" href="/"><span class="clogo" aria-hidden="true"><i></i><i></i><i></i></span>Candor</a>
+  <div class="tabs"><a href="/">Analyze</a><a href="/demo.html">Demo</a><a href="/dashboard.html" aria-current="page">Dashboard</a><a href="/video.html">Video Demo</a></div>
+  <div class="right"><button class="tour-btn" type="button" data-tour-start>? Tutorial</button></div>
 </nav>
-<header class="intro">
+<div class="toolbar">
   <h1>Narratives across Reddit</h1>
   <div class="views" role="group" aria-label="View">
     <button type="button" data-view="map" aria-pressed="true">Narrative map</button>
     <button type="button" data-view="timelapse" aria-pressed="false">▶ Narrative weather (time-lapse)</button>
   </div>
-  <p style="margin-top:10px">4,453 posts and comments from r/AskReddit, r/politics, r/technology and r/EmploymentLaw (collected November 2026), grouped into narratives (what people argue) and topics (what they argue about). Dots are sized by upvotes. Pick a topic to see where it sits on the map, its word clouds and representative comments. Hover over any number for its meaning.</p>
-</header>
+  <button class="about-btn" type="button" id="aboutBtn" hidden>ⓘ About this data</button>
+</div>
 <div class="frame">
   <iframe src="/api/dashboard/map" title="Narrative map of 4,453 Reddit posts and comments" loading="eager"></iframe>
 </div>
+<aside class="info" id="info" aria-label="About this data">
+  <p><b>About this data.</b> 4,453 posts and comments from r/AskReddit, r/politics, r/technology and r/EmploymentLaw (collected November 2026), grouped into narratives (what people argue) and topics (what they argue about). Dots are sized by upvotes. Pick a topic to see where it sits on the map, its word clouds and representative comments. Hover over any number for its meaning.</p>
+  <button class="x" type="button" aria-label="Close">×</button>
+</aside>
+<script>
+// about strip: closable, remembered per browser (storage can be unavailable)
+(function () {
+  const info = document.getElementById('info'), btn = document.getElementById('aboutBtn'), KEY = 'candor_dash_info_closed';
+  function set(closed) {
+    info.hidden = closed; btn.hidden = !closed;
+    try { closed ? localStorage.setItem(KEY, '1') : localStorage.removeItem(KEY); } catch (_) {}
+  }
+  let closed = false; try { closed = localStorage.getItem(KEY) === '1'; } catch (_) {}
+  info.hidden = closed; btn.hidden = !closed;
+  info.querySelector('.x').addEventListener('click', () => set(true));
+  btn.addEventListener('click', () => set(false));
+})();
+</script>
 <script>
 // view switch; #timelapse deep-links the time-lapse
 (function () {
