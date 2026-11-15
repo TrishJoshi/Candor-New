@@ -226,6 +226,11 @@ def write_report(
     data = build_report_data(
         result, embeddings, config or SpatialEngineConfig(), source, labels_source, authors
     )
+    return write_report_data(data, path)
+
+
+def write_report_data(data: dict, path: Path) -> Path:
+    """Write the page for data already built by build_report_data()."""
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     html = _TEMPLATE.replace("__PLOTLY_URL__", PLOTLY_URL).replace("__CANDOR_DATA__", payload)
     path = Path(path)

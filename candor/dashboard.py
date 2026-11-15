@@ -39,6 +39,7 @@ DIR = ROOT / "data" / "dashboard"
 SCORES = DIR / "author_scores.json"
 OUT = ROOT / "web" / "dashboard" / "narrative-map.html"
 DATA_OUT = ROOT / "data" / "dashboard" / "narrative-map.html"  # GET /api/dashboard/map prefers this
+TIMELAPSE = "timelapse.html"  # written next to the map (candor.timelapse; GET /api/dashboard/timelapse)
 BOTS = live.BOTS
 logger = logging.getLogger(__name__)
 
@@ -147,7 +148,8 @@ def build(out: Path = OUT) -> None:
     import numpy as np
 
     from candor.spatial_engine import SpatialEngineConfig
-    from candor.visualize import write_report
+    from candor.timelapse import write_timelapse
+    from candor.visualize import build_report_data, write_report_data
 
     result = load_result()
     _apply_summaries(result)
@@ -157,10 +159,13 @@ def build(out: Path = OUT) -> None:
         authors = {n: v for n, v in json.loads(SCORES.read_text(encoding="utf-8")).items()
                    if v.get("label") != "no_data"}
     cfg = SpatialEngineConfig(embedding_backend="gemini", hdbscan_min_cluster_size=10, hdbscan_selection_method="leaf")
-    tmp = out.with_suffix(".tmp.html")
-    write_report(result, emb, tmp, cfg, source="reddit_posts.json",
-                 labels_source=f"LLM ({os.environ.get('NVIDIA_MODEL', 'nemotron-3.5-super-vl')})", authors=authors)
-    os.replace(tmp, out)
+    data = build_report_data(result, emb, cfg, source="reddit_posts.json",
+                             labels_source=f"LLM ({os.environ.get('NVIDIA_MODEL', 'nemotron-3.5-super-vl')})",
+                             authors=authors)
+    for writer, path in ((write_report_data, out), (write_timelapse, out.with_name(TIMELAPSE))):
+        tmp = path.with_suffix(".tmp.html")
+        writer(data, tmp)
+        os.replace(tmp, path)
     logger.info("wrote %s (%s authors scored)", out, len(authors) if authors else "no")
 
 

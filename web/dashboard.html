@@ -22,6 +22,11 @@ body{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;backg
 .intro h1{font-size:20px;margin:0 0 2px;font-weight:750;letter-spacing:-.01em}
 .intro p{margin:0;color:var(--muted);max-width:900px}
 .frame{flex:1;display:flex;min-height:640px;border-top:1px solid var(--border)}
+/* view switch: narrative map | narrative weather (time-lapse, candor/timelapse.py) */
+.views{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.views button{font:600 13px/1 Inter,system-ui,sans-serif;padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--muted);cursor:pointer}
+.views button[aria-pressed="true"]{background:#14182b;border-color:#14182b;color:#fff}
+.views button:focus-visible{outline:2px solid #3662e3;outline-offset:2px}
 iframe{flex:1;width:100%;border:0;background:#fcfcfb}
 </style>
 </head>
@@ -33,16 +38,35 @@ iframe{flex:1;width:100%;border:0;background:#fcfcfb}
 </nav>
 <header class="intro">
   <h1>Narratives across Reddit</h1>
-  <p>4,453 posts and comments from r/AskReddit, r/politics, r/technology and r/EmploymentLaw (collected November 2026), grouped into narratives (what people argue) and topics (what they argue about). Dots are sized by upvotes. Pick a topic to see where it sits on the map, its word clouds and representative comments. Hover over any number for its meaning.</p>
+  <div class="views" role="group" aria-label="View">
+    <button type="button" data-view="map" aria-pressed="true">Narrative map</button>
+    <button type="button" data-view="timelapse" aria-pressed="false">▶ Narrative weather (time-lapse)</button>
+  </div>
+  <p style="margin-top:10px">4,453 posts and comments from r/AskReddit, r/politics, r/technology and r/EmploymentLaw (collected November 2026), grouped into narratives (what people argue) and topics (what they argue about). Dots are sized by upvotes. Pick a topic to see where it sits on the map, its word clouds and representative comments. Hover over any number for its meaning.</p>
 </header>
 <div class="frame">
   <iframe src="/api/dashboard/map" title="Narrative map of 4,453 Reddit posts and comments" loading="eager"></iframe>
 </div>
+<script>
+// view switch; #timelapse deep-links the time-lapse
+(function () {
+  const frame = document.querySelector('.frame iframe'), btns = document.querySelectorAll('[data-view]');
+  const SRC = {map: '/api/dashboard/map', timelapse: '/api/dashboard/timelapse'};
+  function show(v) {
+    btns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
+    if (frame.getAttribute('src') !== SRC[v]) frame.setAttribute('src', SRC[v]);
+    history.replaceState(null, '', v === 'map' ? location.pathname : '#timelapse');
+  }
+  btns.forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
+  if (location.hash === '#timelapse') show('timelapse');
+})();
+</script>
 <script src="tour.js"></script>
 <script>
 CandorTour.setup({key: 'candor_tour_dashboard', steps: () => [
   {title: 'The dashboard', body: `<p>A map of the narratives across 4,453 Reddit posts and comments from four subreddits.</p>`},
   {sel: '.frame', title: 'Topics, map and word clouds', body: `<ul><li><b>Topics</b> (left): what people talk about, largest first. Click one to highlight it.</li><li><b>Map</b>: every dot is a post or comment, placed by meaning and <b>sized by upvotes</b>. Hover over a dot to read it.</li><li><b>Word clouds</b> (below the map): the words that define the topic and each of its narratives.</li></ul>`},
+  {sel: '.views', title: 'Narrative weather', body: `<p>Switch to the <b>time-lapse</b> to watch the conversation move: comments light up when they're posted, sized by upvotes, and fade, so narratives that go viral swell into bright clouds.</p>`},
   {title: 'Authenticity on the map', body: `<p>On the map of a thread you analyse yourself, dots also <b>fade with their author's authenticity score</b>, so big, solid clusters show narratives with real engagement from authentic-looking accounts.</p><p>This dataset's 3,516 authors haven't been scored, so here size alone shows engagement.</p>`, action: {label: 'Analyze a post →', href: '/'}},
 ]});
 </script>

@@ -113,3 +113,21 @@ def test_report_engagement_and_authenticity():
     # narrative 0 = c0 (u0, 10), c2 (u2, 5), c4 (u1, 10), c6 (u0, 5): upvotes + 1 each
     assert by[0] == {"ok": 11 + 6, "warn": 11, "bad": 0, "na": 6}
     assert data["meta"]["engagement"]["upvotes"] == sum(n["upvotes"] for n in data["narratives"])
+
+
+def test_timelapse_page(tmp_path):
+    """The time-lapse reuses the report data without comment texts."""
+    from candor.timelapse import build_timelapse_data, write_timelapse
+    comments = [Comment(comment_id=f"c{i}", author="a", text=f"secret text {i}", narrative_id=0, topic_id=0,
+                        created_utc=1_700_000_000 + 60 * i, upvote_count=i) for i in range(6)]
+    kw = [Keyword(word="w", weight=0.5)]
+    result = ProcessingResult(
+        comments=comments,
+        narratives=[NarrativeSummary(narrative_id=0, label="n0", topic_id=0, size=6, representative_comment_ids=["c0"], keywords=kw)],
+        topics=[TopicSummary(topic_id=0, label="t", narrative_ids=[0], size=6, keywords=kw)],
+    )
+    report = build_report_data(result, np.random.default_rng(0).normal(size=(6, 8)), SpatialEngineConfig())
+    data = build_timelapse_data(report)
+    assert data["points"]["t"][:2] == [1_700_000_000, 1_700_000_060] and "text" not in data["points"]
+    html = write_timelapse(report, tmp_path / "tl.html").read_text()
+    assert "__TIMELAPSE_DATA__" not in html and "secret text" not in html

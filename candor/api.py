@@ -5,6 +5,7 @@ GET  /api/analyses/{id}           -> status, progress, message, error, summary
 GET  /api/analyses/{id}/view      -> Reddit-mockup data (web/view.html renders it)
 GET  /api/analyses/{id}/map       -> interactive narrative map (HTML)
 GET  /api/dashboard/map           -> Dashboard narrative map (server-built copy with scores, else web/)
+GET  /api/dashboard/timelapse     -> Dashboard "narrative weather" time-lapse (same fallback)
 GET  /api/demo                    -> demo feed: every finished analysis (newest per post)
 GET  /api/history                 -> this visitor's past analyses (cookie ``candor_vid``)
 GET  /api/health                  -> {"ok": true}
@@ -194,15 +195,24 @@ def get_demo() -> dict:
     return {"analyses": out}
 
 
-@app.get("/api/dashboard/map")
-def get_dashboard_map() -> FileResponse:
-    """The Dashboard's narrative map: the server-built copy (python -m candor.dashboard build-data,
-    with author scores) when present, else the committed one in web/."""
+def _dashboard_file(name: str) -> FileResponse:
+    """The server-built copy (python -m candor.dashboard build-data, with author scores) when
+    present, else the committed one in web/dashboard/."""
     root = Path(__file__).resolve().parent.parent
-    for p in (store.DATA / "dashboard" / "narrative-map.html", root / "web" / "dashboard" / "narrative-map.html"):
+    for p in (store.DATA / "dashboard" / name, root / "web" / "dashboard" / name):
         if p.exists():
             return FileResponse(p, media_type="text/html")
-    raise HTTPException(404, "No dashboard map")
+    raise HTTPException(404, "Not built yet")
+
+
+@app.get("/api/dashboard/map")
+def get_dashboard_map() -> FileResponse:
+    return _dashboard_file("narrative-map.html")
+
+
+@app.get("/api/dashboard/timelapse")
+def get_dashboard_timelapse() -> FileResponse:
+    return _dashboard_file("timelapse.html")
 
 
 @app.get("/api/history")
