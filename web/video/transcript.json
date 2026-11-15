@@ -1,0 +1,122 @@
+{
+ "duration": 112.97,
+ "chapters": {
+  "hook": 0.0,
+  "problem": 10.18,
+  "analyze": 18.74,
+  "feed": 29.99,
+  "accounts": 38.93,
+  "narratives": 60.71,
+  "filter": 73.11,
+  "dashboard": 78.79,
+  "weather": 92.54,
+  "closing": 99.45
+ },
+ "cues": [
+  {
+   "start": 0.0,
+   "end": 4.1,
+   "text": "How many of you read the headline, skip the article, and go straight to the comments?"
+  },
+  {
+   "start": 4.46,
+   "end": 9.43,
+   "text": "Before we even open the link, likes, upvotes and top comments have already shaped our opinion."
+  },
+  {
+   "start": 10.18,
+   "end": 13.35,
+   "text": "If it's about burgers, who cares if a million people liked it?"
+  },
+  {
+   "start": 13.7,
+   "end": 17.99,
+   "text": "But when it affects your friends and your family, public perception matters most."
+  },
+  {
+   "start": 18.74,
+   "end": 25.05,
+   "text": "Candor doesn't ban bots or flag accounts. It shows how narratives behave, and what kinds of accounts support them."
+  },
+  {
+   "start": 25.4,
+   "end": 29.21,
+   "text": "Paste any public Reddit thread, and Candor analyzes it live."
+  },
+  {
+   "start": 29.99,
+   "end": 32.38,
+   "text": "Or browse threads we've already analyzed."
+  },
+  {
+   "start": 32.74,
+   "end": 38.17,
+   "text": "Each one shows its narrative distribution, an AI summary, and how many commenters were flagged."
+  },
+  {
+   "start": 38.93,
+   "end": 44.27,
+   "text": "Stage 1 \u00b7 context.dev pulls posts, comments and profiles in real time."
+  },
+  {
+   "start": 44.62,
+   "end": 49.48,
+   "text": "Every engaged commenter is scored from zero to one hundred, on five weighted criteria."
+  },
+  {
+   "start": 49.84,
+   "end": 57.7,
+   "text": "Is this an established, real person? Did they write it? Are they acting in concert with others? Did they earn their upvotes? And do they do this elsewhere?"
+  },
+  {
+   "start": 58.05,
+   "end": 59.95,
+   "text": "Click any badge to see the evidence."
+  },
+  {
+   "start": 60.71,
+   "end": 67.75,
+   "text": "Stage 2 \u00b7 Gemini embeddings turn each comment into a vector; HDBSCAN finds dense clusters of shared meaning."
+  },
+  {
+   "start": 68.11,
+   "end": 72.36,
+   "text": "NVIDIA Nemotron names each cluster and explains it. That's the narrative."
+  },
+  {
+   "start": 73.11,
+   "end": 78.04,
+   "text": "Raise the filter to fold away low-scoring accounts, and see what the real people are saying."
+  },
+  {
+   "start": 78.79,
+   "end": 85.71,
+   "text": "The dashboard scales this up: 4,453 posts and comments, grouped into narratives and topics."
+  },
+  {
+   "start": 86.07,
+   "end": 88.59,
+   "text": "Every topic carries its own authenticity score."
+  },
+  {
+   "start": 92.54,
+   "end": 98.29,
+   "text": "Narrative weather replays the conversation over time, so you can watch narratives swell as they go viral."
+  },
+  {
+   "start": 99.45,
+   "end": 104.66,
+   "text": "It's not a verdict on any person. It's the crowd behind each narrative, on transparent criteria."
+  },
+  {
+   "start": 105.02,
+   "end": 108.17,
+   "text": "We can't fix the crowd. But we can show you who's in it."
+  },
+  {
+   "start": 108.52,
+   "end": 111.01,
+   "text": "See it for yourself. See it with Candor."
+  }
+ ]
+}

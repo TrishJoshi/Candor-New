@@ -10,7 +10,10 @@
 
 <p align="center"><img src="docs/screenshots/07-result-thread.png" alt="A Reddit thread seen through Candor: each comment carries its author's authenticity badge and its narrative, and the sidebar ranks the thread's narratives" width="900"></p>
 
-Candor analyses the comments under any public Reddit post and answers two questions:
+- **Analyze** (`web/index.html`): paste any public Reddit link and the full pipeline runs live on it. Your past analyses are listed below the form (remembered with a cookie).
+- **Demo** (`web/demo.html`): a feed of real threads analysed in advance by the live pipeline, each opening in the same result view as a live analysis (`view.html?id=ex-<id>`). Bundled with `python -m candor.examples <analysis_id> ...` into `web/examples/`.
+- **Dashboard** (`web/dashboard.html`): the narrative map of 4,453 posts and comments from four subreddits.
+- **Video Demo** (`web/video.html`): a narrated walkthrough of the site (under 2 minutes) with chapters, a transcript and a download button. The MP4 is committed in `web/video/`.
 
 1. **What are people arguing?** Comments are grouped into narratives, and each narrative is weighted by its engagement (upvotes and replies).
 2. **Who is pushing each narrative?** The most engaged commenters are scored for authenticity against signs of Coordinated Inauthentic Behaviour (CIB), such as bots, purchased accounts and coordinated campaigns.
@@ -49,7 +52,14 @@ cp narrative-buckets/.env.example narrative-buckets/.env   # add GEMINI_API_KEY 
 .venv/bin/uvicorn candor.api:app --reload --port 8000     # → http://localhost:8000/
 ```
 
-Or run the pipeline from the command line: `python -m candor.live <reddit_url>`. See [TECHNICAL.md](TECHNICAL.md) for the architecture, API, deployment and configuration.
+Locally, FastAPI also serves `web/`, so you don't need nginx. The live pipeline loads both `.env` files itself.
+
+- Run the pipeline without the web app: `python -m candor.live <reddit_url>` (prints the `view.html?id=` to open).
+- Dashboard map with author scores: `python -m candor.dashboard all` (scrapes and scores all 3,514 authors, ~1 credit each, then builds `data/dashboard/narrative-map.html`, which `GET /api/dashboard/map` serves ahead of the committed `web/dashboard/narrative-map.html`). `summarize` writes AI summaries; `build` refreshes the committed fallback. Inputs live in `data/dashboard/` (not in git).
+- **Narrative weather** (Dashboard → time-lapse, `GET /api/dashboard/timelapse`): an animated replay of the narrative map, built by `candor.dashboard build`/`build-data` from the same data. All of it lives in `narrative-buckets/candor/timelapse.py`; to remove it, delete that module, its two calls in `candor/dashboard.py`, the endpoint and the view switch in `web/dashboard.html`.
+- **Video Demo** (`web/video/candor-demo.mp4`, `poster.jpg`, `transcript.json`): rebuilt by `tools/demo_video/build.py`, which records the site with Playwright, narrates it with Piper (local TTS) and encodes it with ffmpeg. Dev-only deps: `python -m venv .venv-demo && .venv-demo/bin/pip install -r requirements-demo.txt` (plus ffmpeg and Chromium). The storyboard (narration + clicks) is the `SCENES` list in that file. Rebuild after UI changes so the video stays accurate; see the script's docstring for recording an unreleased checkout locally.
+- Rebuild stored narrative maps after changing the map: `python -m candor.rebuild --all` (or `<id> ...`). Runs from before `embeddings.npy` was stored are re-embedded once with Gemini; no context.dev credits.
+- Tests: `python -m pytest` (app, offline) and `cd narrative-buckets && python -m pytest` (Stage 2 engine).
 
 ---
 
@@ -162,6 +172,55 @@ Not just for users: Candor also provides narrative-monitoring capability to expe
 
 Social media was built as a space to connect. Now we scroll through noise, wondering who's real and who's paid.
 
+| Path | What |
+|---|---|
+| [candor/api.py](candor/api.py) | FastAPI app (endpoints above); serves `web/` locally |
+| [candor/live.py](candor/live.py) | Live pipeline `analyze(id, url, progress)` |
+| [candor/scrape.py](candor/scrape.py) | Scrapes one Reddit thread with context.dev into the base post format |
+| [candor/profiles.py](candor/profiles.py) | Picks the most engaged commenters and scrapes their profiles (cached) |
+| [candor/scoring.py](candor/scoring.py) | Thread topic keywords + live account scoring |
+| [candor/view.py](candor/view.py) | Builds the mockup data (threads, profiles, narratives) |
+| [candor/store.py](candor/store.py) | SQLite index + per-analysis files |
+| [candor/urls.py](candor/urls.py) | Reddit URL validation and normalisation |
+| [candor/rebuild.py](candor/rebuild.py) | Rebuilds stored analyses' `map.html` |
+| [candor/SCRAPING.md](candor/SCRAPING.md) | Design doc for the live scraping stage, including the planned profile scraping and scoring |
+| [candor/\_\_init\_\_.py](candor/__init__.py) | Adds `narrative-buckets/candor` to the `candor` package's import path, so both codebases import as `candor.*` |
+| [web/index.html](web/index.html) | Analyze tab: paste a link, your past analyses |
+| [web/view.html](web/view.html) | A live analysis in the Reddit mockup (`?id=`); the template without data |
+| [web/demo.html](web/demo.html) | Simulated Reddit feed (template + dataset-2 data) |
+| [web/dashboard.html](web/dashboard.html) | Dashboard tab; embeds `web/dashboard/narrative-map.html` |
+| [web/video.html](web/video.html) | Video Demo tab: player, download, chapters and transcript for `web/video/` |
+| [tools/demo_video/build.py](tools/demo_video/build.py) | Builds the narrated demo video (`requirements-demo.txt`) |
+| [web/analyze.html](web/analyze.html) | Redirects old links to the Analyze tab |
+| [web/tour.js](web/tour.js) | Guided tutorial shared by all pages |
+| `web/example/` | The tutorial's example result (`view.json` + `map.html` of one r/politics analysis) |
+| [mockup/template.html](mockup/template.html) | The Reddit mockup used by demo.html and view.html. `mockup/build_mockup.py` regenerates both (demo from `data/dataset2`; note this changes the demo, whose committed data predates the current `profile_scores.json`). |
+| `web/logos/` | Partner logos (context.dev, Hostinger, NVIDIA) |
+| [deploy/](deploy/) | `deploy.sh`, `setup_vps.sh`, `candor.service`, `nginx-candor.conf` (see above) |
+| [requirements.txt](requirements.txt) | Server dependencies (FastAPI, context.dev, UMAP, HDBSCAN, Gemini/NVIDIA clients). The local MiniLM/torch model is deliberately left out. |
+| [tests/](tests/) | Offline tests: API/storage, URL handling, live scoring |
+
+### Narrative buckets (Stage 2)
+
+| Path | What |
+|---|---|
+| [narrative-buckets/](narrative-buckets/) | Narrative clustering engine. See its [README](narrative-buckets/README.md) and `AGENT.md`. |
+| `narrative-buckets/candor/spatial_engine.py` | Embed → UMAP → HDBSCAN narratives → topic grouping → labels |
+| `narrative-buckets/candor/ingest.py` | Flattens nested Reddit posts into comment records |
+| `narrative-buckets/candor/embedders.py`, `labeling.py`, `representation.py` | Gemini or local embeddings, LLM or keyword labels, c-TF-IDF |
+| `narrative-buckets/candor/visualize.py` | Writes the interactive narrative-map HTML |
+| `narrative-buckets/candor/pipeline.py` | Batch command-line tool (not used by the live API); produced the Dashboard map |
+| `narrative-buckets/tests/` | Offline tests |
+| `narrative-buckets/out/` | Batch outputs (reports, embedding caches) |
+
+### Account credibility scoring (Stage 3)
+
+| Path | What |
+|---|---|
+| [profile_authenticity_scorer.py](profile_authenticity_scorer.py) | Scores Reddit accounts 0–100 on C1 profile (20), C2 originality (20), C3 coordination (15), C4 engagement legitimacy (20), C5 behavioural history (25). 100 = looks authentic. Offline (dataset 2) and live (`score_live`) modes. |
+| [reference/cohort_dataset2.json](reference/cohort_dataset2.json) | Frozen comparison cohort for live scoring |
+| [score_overview.py](score_overview.py) | Summary of the profile scores |
+| [scorer.py](scorer.py), [evaluate.py](evaluate.py), [generate_test_data.py](generate_test_data.py) | Earlier comment-level scorer (Facebook format), its evaluation and synthetic test data |
 We can't fix the crowd. But we can show you who's in it.
 
 <p align="center"><b>See it for yourself. See it with Candor.</b><br><a href="https://candor-junction-2026.tech">candor-junction-2026.tech</a></p>

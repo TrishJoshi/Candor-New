@@ -264,7 +264,7 @@ a.post:hover{text-decoration:none}
 <body>
 <nav class="cnav" aria-label="Candor">
   <a class="brand" href="/"><span class="clogo" aria-hidden="true"><i></i><i></i><i></i></span>Candor</a>
-  <div class="tabs"><a href="/">Analyze</a><a href="/demo.html">Demo</a><a href="/dashboard.html">Dashboard</a></div>
+  <div class="tabs"><a href="/">Analyze</a><a href="/demo.html">Demo</a><a href="/dashboard.html">Dashboard</a><a href="/video.html">Video Demo</a></div>
   <div class="right"><button class="tour-btn" type="button" data-tour-start>? Tutorial</button></div>
 </nav>
 <header class="top">
@@ -525,7 +525,8 @@ function renderSide(){
     </div></div>` + (LIVE() ? notesCard() : "");
   document.getElementById("thr").addEventListener("input", e=>{
     state.threshold = +e.target.value; document.getElementById("thrv").textContent = state.threshold||"off";
-    if(location.hash.startsWith("#/t/")) route();
+    // live analyses show their one thread without a #/t/ hash; keep the reader's place
+    if(location.hash.startsWith("#/t/") || LIVE()){ state.keepScroll = true; route(); }
   });
 }
 

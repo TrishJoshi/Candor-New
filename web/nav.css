@@ -34,7 +34,8 @@
 
 @media (max-width:640px){
   .cnav{height:auto;grid-template-columns:1fr auto;padding:10px 16px;row-gap:8px}
-  .cnav .tabs{grid-column:1/-1;grid-row:2;justify-content:center}
+  .cnav .tabs{grid-column:1/-1;grid-row:2;justify-content:center;gap:2px;max-width:100%;overflow-x:auto}
+  .cnav .tabs a{padding:7px 10px;font-size:14px;white-space:nowrap}
   .cnav .right{grid-column:2;grid-row:1}
   .cnav .right .status{display:none}
 }

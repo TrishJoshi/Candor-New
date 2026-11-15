@@ -107,7 +107,7 @@ footer a:hover{color:var(--blue)}
 <body>
 <nav class="cnav" aria-label="Candor">
   <a class="brand" href="/"><span class="clogo" aria-hidden="true"><i></i><i></i><i></i></span>Candor</a>
-  <div class="tabs"><a href="/" aria-current="page">Analyze</a><a href="/demo.html">Demo</a><a href="/dashboard.html">Dashboard</a></div>
+  <div class="tabs"><a href="/" aria-current="page">Analyze</a><a href="/demo.html">Demo</a><a href="/dashboard.html">Dashboard</a><a href="/video.html">Video Demo</a></div>
   <div class="right"><span class="status" id="api"><i></i><span>Checking API…</span></span><button class="tour-btn" type="button" data-tour-start>? Tutorial</button></div>
 </nav>
 <div class="page">
@@ -267,6 +267,7 @@ CandorTour.setup({key: 'candor_tour_home', steps: () => [
   {sel: '.history', title: '3. Come back any time', body: `<p>Every analysis you run is saved here, in this browser, with its <b>narrative distribution</b>: the thread's top narratives and their share of the engagement.</p>`},
   {sel: '.mode.demo', title: 'Or browse the demo', body: `<p>A feed of threads we've already analysed, where every account carries its authenticity score.</p>`},
   {sel: '.tabs a[href="/dashboard.html"]', title: 'Dashboard', body: `<p>The narrative map across 4,453 posts and comments from four subreddits.</p>`},
+  {sel: '.tabs a[href="/video.html"]', title: 'Video Demo', body: `<p>A two-minute narrated tour of everything above, which you can also download.</p>`},
   {title: 'Next: reading a result', body: `<p>Let's open a finished analysis and go through what each number means.</p>`, action: {label: 'Show me an example →', href: 'view.html?id=example&tour=1'}},
 ]});
 </script>
