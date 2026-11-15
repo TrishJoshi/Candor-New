@@ -1,39 +1,55 @@
 <h1 align="center">Candor</h1>
 
-<p align="center"><b>We can't fix the crowd. But we can show you who's in it.</b></p>
+<p align="center"><b>See who's really behind the narratives in a Reddit thread.</b></p>
 
 <p align="center">
-  <a href="https://candor-junction-2026.tech"><b>Try it live → candor-junction-2026.tech</b></a>
-  &nbsp;·&nbsp; <a href="TECHNICAL.md">Technical documentation</a>
-  &nbsp;·&nbsp; <a href="docs/screenshots/">All screenshots</a>
+  <a href="https://candor-junction-2026.tech"><b>Live demo</b></a>
+  &nbsp;·&nbsp; <a href="TECHNICAL.md">Technical docs</a>
+  &nbsp;·&nbsp; <a href="docs/screenshots/">Screenshots</a>
 </p>
 
 <p align="center"><img src="docs/screenshots/07-result-thread.png" alt="A Reddit thread seen through Candor: each comment carries its author's authenticity badge and its narrative, and the sidebar ranks the thread's narratives" width="900"></p>
 
----
+Candor analyses the comments under any public Reddit post and answers two questions:
 
-## Read the comments first?
+1. **What are people arguing?** Comments are grouped into narratives, and each narrative is weighted by its engagement (upvotes and replies).
+2. **Who is pushing each narrative?** The most engaged commenters are scored for authenticity against signs of Coordinated Inauthentic Behaviour (CIB), such as bots, purchased accounts and coordinated campaigns.
 
-How many of you read the headline, skip the article, and go straight to the comments?
+Upvotes and top comments shape how we judge a post before we've read it. Candor doesn't ban or flag anyone. Instead, it shows the makeup of the accounts behind each narrative, using transparent, weighted criteria, so readers can judge for themselves.
 
-None? Just me?
+Built at Junction 2026.
 
-Before we even open the link, we have already formed an opinion. Research shows that like counts, upvotes and top comments make it easier to judge a post before we have evaluated it.
+## Features
 
-## The problem
+- **Live analysis:** paste a Reddit link and get results in about a minute.
+- **Account authenticity scores:** each account is scored 0–100 on five criteria (profile, originality, coordination, engagement legitimacy and behavioural history), and you can see the breakdown behind every score.
+- **Narrative detection:** comments are clustered by meaning, labelled and summarised by an LLM, and ranked by engagement.
+- **Narrative composition:** for each narrative, see which kinds of accounts push it (likely authentic, uncertain or suspicious).
+- **Narrative map:** an interactive map of every comment, with dots sized by upvotes and faded by author authenticity.
+- **Cross-subreddit dashboard:** 4,453 posts and comments from four subreddits, grouped into 75 topics and 107 narratives, with a timeline, a ranking of narratives that lean on inauthentic accounts, and a "narrative weather" time-lapse.
+- **Approachable:** tooltips on every number, a guided tutorial on each page, and a mobile-friendly layout.
 
-If it's about Hesburger vs McDonald's, or which Kardashian is the hottest, who cares if a million people liked it?
+## Tech stack
 
-But some things can't be left to personal taste. When it affects your friends and your family, that's when public perception matters most. And that perception is exactly what bots, purchased accounts and coordinated campaigns are built to bend.
+| Layer | Tools |
+|---|---|
+| Data collection | [context.dev](https://context.dev) (real-time Reddit posts, comments and profiles) |
+| Embeddings | Google Gemini text embeddings |
+| Clustering | UMAP + HDBSCAN (narratives), agglomerative clustering (topics) |
+| Labels and summaries | NVIDIA Nemotron |
+| Backend | Python, FastAPI, SQLite |
+| Hosting | Hostinger VPS, nginx, systemd |
 
-## The Candor approach
+## Quick start
 
-Instead of banning bots or flagging accounts, **we examine how narratives behave, and what kinds of accounts support them**, and we make that readily available to users and the public.
+```bash
+python -m venv .venv && .venv/bin/pip install -r requirements.txt
+echo "CONTEXT_DEV_API_KEY=..." > .env
+cp narrative-buckets/.env.example narrative-buckets/.env   # add GEMINI_API_KEY (NVIDIA_API_KEY optional)
+.venv/bin/uvicorn candor.api:app --reload --port 8000     # → http://localhost:8000/
+```
 
-Our solution has two parts:
-
-1. **Live platform, account and narrative authenticity analysis**, easy for anyone to digest.
-2. **How these narratives shape the most powerful topics on the Internet today.**
+Or run the pipeline from the command line: `python -m candor.live <reddit_url>`. See [TECHNICAL.md](TECHNICAL.md) for the architecture, API, deployment and configuration.
 
 ---
 
