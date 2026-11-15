@@ -49,6 +49,7 @@ form{display:flex;gap:8px;flex-wrap:wrap}
 input{flex:1 1 200px;min-width:0;font:15px Inter,system-ui,sans-serif;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:var(--white);color:var(--text)}
 input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
 .hint{font-size:13px;color:var(--red);min-height:1.3em}
+.hint a{color:inherit;text-decoration:underline;font-weight:600}
 .status{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
 .status i{width:8px;height:8px;border-radius:50%;background:var(--border)}
 .status.up i{background:var(--green)}
@@ -180,6 +181,14 @@ function validReddit(u) {
 }
 
 const btn = form.querySelector('button');
+const isShareLink = u => { try { return /\/s\/[A-Za-z0-9_-]+\/?$/.test(new URL(u).pathname); } catch { return false; } };
+// Reddit blocks our server from following app share links, and browsers don't let a page read
+// another site's redirect, so ask the visitor to open it and paste the full address back.
+function shareLinkHint(u) {
+  const a = Object.assign(document.createElement('a'), {href: u, target: '_blank', rel: 'noopener noreferrer', textContent: 'Open this link in your browser'});
+  hint.replaceChildren("We couldn't open Reddit's share link. ", a,
+    ', then copy the full address from the address bar (…reddit.com/r/<sub>/comments/…) and paste it here.');
+}
 form.addEventListener('submit', async e => {
   e.preventDefault();
   const u = input.value.trim();
@@ -188,6 +197,7 @@ form.addEventListener('submit', async e => {
   try {
     const r = await fetch('api/analyze', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url: u})});
     const j = await r.json().catch(() => ({}));
+    if (r.status === 400 && isShareLink(u)) { shareLinkHint(u); btn.disabled = false; btn.textContent = 'Analyze'; input.select(); return; }
     if (!r.ok) throw new Error(j.detail || 'Could not start the analysis');
     location.href = 'view.html?id=' + encodeURIComponent(j.id);
   } catch (err) {
